@@ -3,17 +3,17 @@ import {
   View,
   Text,
   TextInput,
-  FlatList,
   TouchableOpacity,
+  FlatList,
   Modal,
-  ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   Alert,
+  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Speech from 'expo-speech';
-import * as FileSystem from 'expo-file-system';
+import { v4 as uuidv4 } from 'uuid';
 
 interface Provider {
   id: string;
@@ -25,223 +25,245 @@ interface Provider {
   fax: string;
   notes: string;
 }
-const generateId = () => Math.random().toString(36).substring(2, 10);
-const defaultForm: Omit<Provider, 'id'> = {
-  name: '',
-  specialty: '',
-  address: '',
-  phone: '',
-  email: '',
-  fax: '',
-  notes: '',
-};
 
 const ProvidersScreen = () => {
   const [providers, setProviders] = useState<Provider[]>([]);
-  const [form, setForm] = useState<Omit<Provider, 'id'>>(defaultForm);
-  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
+  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    simulateAIAutoDetection();
-  }, []);
+  const [form, setForm] = useState<Omit<Provider, 'id'>>({
+    name: '',
+    specialty: '',
+    address: '',
+    phone: '',
+    email: '',
+    fax: '',
+    notes: '',
+  });
 
-  const simulateAIAutoDetection = () => {
-    const newAIProvider: Provider = {
-      id: generateId(),
-      name: 'Dr. Evelyn Chase',
-      specialty: 'Pulmonology',
-      address: '456 Respiratory Ln, Lungtown, CA',
-      phone: '555-901-2345',
-      email: 'evelyn.chase@lungclinic.com',
-      fax: '555-901-2346',
-      notes: 'Visit dates: Jan 10, 2023; Feb 20, 2023',
+  const handleAddProvider = () => {
+    if (!form.name.trim()) {
+      Alert.alert('Validation', 'Provider name or facility is required.');
+      return;
+    }
+
+    const newProvider: Provider = { id: uuidv4(), ...form };
+    setProviders([...providers, newProvider]);
+    resetForm();
+    setModalVisible(false);
+  };
+
+  const resetForm = () => {
+    setForm({
+      name: '',
+      specialty: '',
+      address: '',
+      phone: '',
+      email: '',
+      fax: '',
+      notes: '',
+    });
+    setSelectedProvider(null);
+  };
+
+  const handleDelete = (id: string) => {
+    Alert.alert('Confirm Delete', 'Are you sure you want to delete this provider?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => {
+        setProviders(providers.filter(p => p.id !== id));
+      }},
+    ]);
+  };
+
+  const handleAIUploadDetection = () => {
+    // Simulate AI detection from uploaded file
+    const detected: Omit<Provider, 'id'> = {
+      name: 'Dr. Marcus Welby',
+      specialty: 'Family Medicine',
+      address: '123 Health St, Medtown',
+      phone: '555-1010',
+      email: 'marcus@example.com',
+      fax: '555-2020',
+      notes: 'Visit: 2023-12-01\nVisit: 2024-01-10',
     };
 
     Alert.alert(
       'AI Detected Provider Info',
-      'Would you like to create a new provider card using the detected data?',
+      'AI found provider information. Would you like to add as a new provider or update an existing one?',
       [
+        {
+          text: 'Create New',
+          onPress: () => setProviders([...providers, { id: uuidv4(), ...detected }]),
+        },
         {
           text: 'Update Existing',
           onPress: () => {
-            // Simulate update (choose first one for demo)
             if (providers.length > 0) {
               const updated = [...providers];
-              updated[0] = { ...updated[0], ...newAIProvider };
+              updated[0] = { ...updated[0], ...detected };
               setProviders(updated);
             } else {
-              setProviders((prev) => [...prev, newAIProvider]);
+              Alert.alert('No existing providers to update.');
             }
           },
         },
-        {
-          text: 'Create New',
-          onPress: () => {
-            setProviders((prev) => [...prev, newAIProvider]);
-          },
-        },
-        { text: 'Cancel', style: 'cancel' },
       ]
     );
   };
 
-  const filteredProviders = providers.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase())
+  useEffect(() => {
+    handleAIUploadDetection(); // Automatically run on screen load (simulate upload detection)
+  }, []);
+
+  const filteredProviders = providers.filter(p =>
+    p.name.toLowerCase().includes(search.toLowerCase()) ||
+    p.specialty.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleInputChange = (key: keyof typeof form, value: string) => {
-    setForm({ ...form, [key]: value });
-  };
-
-  const handleAddProvider = () => {
-    if (!form.name) {
-      Alert.alert('Error', 'Provider name is required.');
-      return;
-    }
-
-    const newProvider: Provider = {
-      id: generateId(),
-      ...form,
-    };
-    setProviders((prev) => [...prev, newProvider]);
-    setForm(defaultForm);
-    setModalVisible(false);
-  };
-
-  const handleVoiceInput = (field: keyof typeof form) => {
-    Speech.speak(`Please say your ${field}`, {
-      onDone: () => console.log(`${field} voice input complete`),
-    });
-  };
-
-  const handleCardPress = (id: string) => {
-    setSelectedProviderId(selectedProviderId === id ? null : id);
-  };
-
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={{ flex: 1, backgroundColor: '#f9f9f9' }}
-    >
-      <View style={{ padding: 16 }}>
-        <Text
-          accessibilityRole="header"
-          style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 12 }}
-        >
-          Providers & Facilities
-        </Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={80}
+      >
+        <ScrollView contentContainerStyle={{ padding: 20 }}>
+          <Text style={{ fontSize: 28, fontWeight: 'bold', marginBottom: 20 }}>Providers</Text>
 
-        <TextInput
-          placeholder="🔍 Search providers"
-          accessibilityLabel="Search providers"
-          style={{
-            backgroundColor: 'white',
-            padding: 12,
-            borderRadius: 8,
-            marginBottom: 16,
-            fontSize: 16,
-          }}
-          value={search}
-          onChangeText={setSearch}
-        />
+          <TextInput
+            placeholder="Search providers"
+            value={search}
+            onChangeText={setSearch}
+            style={{
+              borderWidth: 1,
+              borderColor: '#ccc',
+              padding: 12,
+              borderRadius: 8,
+              marginBottom: 20,
+              fontSize: 16,
+            }}
+            accessibilityLabel="Search Providers"
+          />
 
-        <TouchableOpacity
-          onPress={() => setModalVisible(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Add a provider or facility"
-          style={{
-            backgroundColor: '#007AFF',
-            padding: 14,
-            borderRadius: 8,
-            marginBottom: 16,
-            alignItems: 'center',
-          }}
-        >
-          <Text style={{ color: 'white', fontSize: 18, fontWeight: 'bold' }}>
-            ➕ Add a Provider or Facility
-          </Text>
-        </TouchableOpacity>
-
-        <FlatList
-          data={filteredProviders}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingBottom: 80 }}
-          renderItem={({ item }) => (
+          {filteredProviders.map((provider) => (
             <TouchableOpacity
-              onPress={() => handleCardPress(item.id)}
-              accessibilityHint="Tap to view provider details"
+              key={provider.id}
+              onPress={() => {
+                setSelectedProvider(provider);
+                setModalVisible(true);
+              }}
               style={{
-                backgroundColor: 'white',
-                padding: 16,
+                borderWidth: 1,
+                borderColor: '#ccc',
+                padding: 15,
                 borderRadius: 8,
                 marginBottom: 12,
-                shadowColor: '#000',
-                shadowOpacity: 0.1,
-                shadowRadius: 4,
-                elevation: 2,
               }}
+              accessibilityLabel={`Open ${provider.name} details`}
             >
-              <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{item.name}</Text>
-              <Text style={{ fontSize: 16, color: '#555' }}>{item.specialty}</Text>
-
-              {selectedProviderId === item.id && (
-                <View style={{ marginTop: 12 }}>
-                  <Text style={{ fontSize: 15 }}>🏠 {item.address}</Text>
-                  <Text style={{ fontSize: 15 }}>📞 {item.phone}</Text>
-                  <Text style={{ fontSize: 15 }}>✉️ {item.email}</Text>
-                  <Text style={{ fontSize: 15 }}>📠 {item.fax}</Text>
-                  <Text style={{ fontSize: 15 }}>📝 {item.notes}</Text>
-                </View>
-              )}
+              <Text style={{ fontSize: 18, fontWeight: '600' }}>{provider.name}</Text>
+              {provider.specialty ? (
+                <Text style={{ fontSize: 14, color: '#666' }}>{provider.specialty}</Text>
+              ) : null}
             </TouchableOpacity>
-          )}
-        />
+          ))}
 
-        <Modal visible={modalVisible} animationType="slide">
-          <ScrollView contentContainerStyle={{ padding: 16 }}>
-            <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 16 }}>
-              Add New Provider
-            </Text>
+          <TouchableOpacity
+            onPress={() => {
+              resetForm();
+              setModalVisible(true);
+            }}
+            style={{
+              backgroundColor: '#007AFF',
+              padding: 15,
+              borderRadius: 8,
+              alignItems: 'center',
+              marginTop: 10,
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Add a provider or facility"
+          >
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600' }}>➕ Add Provider or Facility</Text>
+          </TouchableOpacity>
 
-            {Object.keys(form).map((field) => (
-              <View key={field} style={{ marginBottom: 12 }}>
-                <Text style={{ fontSize: 16, marginBottom: 4 }}>{field.charAt(0).toUpperCase() + field.slice(1)}</Text>
-                <TextInput
-                  placeholder={`Type ${field}`}
+          <Modal visible={modalVisible} animationType="slide">
+            <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
+              <ScrollView contentContainerStyle={{ padding: 20 }}>
+                <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 20 }}>
+                  {selectedProvider ? 'Edit Provider' : 'Add New Provider'}
+                </Text>
+
+                {(
+                  Object.keys(form) as (keyof Omit<Provider, 'id'>)[]
+                ).map((key) => (
+                  <View key={key} style={{ marginBottom: 16 }}>
+                    <Text style={{ fontSize: 16, fontWeight: '500', marginBottom: 4 }}>
+                      {key.charAt(0).toUpperCase() + key.slice(1)}
+                    </Text>
+                    <TextInput
+                      value={form[key]}
+                      onChangeText={(text) =>
+                        setForm((prev) => ({ ...prev, [key]: text }))
+                      }
+                      placeholder={
+                        {
+                          name: '🏥 Name or Facility',
+                          specialty: 'Specialty',
+                          address: '🏠 Address',
+                          phone: '📞 Phone',
+                          email: '✉️ Email',
+                          fax: '📠 Fax',
+                          notes: '📝 Notes',
+                        }[key]
+                      }
+                      style={{
+                        borderWidth: 1,
+                        borderColor: '#ccc',
+                        padding: 12,
+                        borderRadius: 8,
+                        fontSize: 16,
+                        backgroundColor: '#fff',
+                      }}
+                      multiline={key === 'notes'}
+                      accessibilityLabel={`${key} input`}
+                    />
+                  </View>
+                ))}
+
+                <TouchableOpacity
+                  onPress={handleAddProvider}
                   style={{
-                    borderColor: '#ccc',
-                    borderWidth: 1,
-                    padding: 12,
+                    backgroundColor: '#28a745',
+                    padding: 15,
                     borderRadius: 8,
-                    fontSize: 16,
+                    alignItems: 'center',
+                    marginTop: 10,
                   }}
-                  accessibilityLabel={`Input field for ${field}`}
-                  value={form[field as keyof typeof form]}
-                  onChangeText={(text) => handleInputChange(field as keyof typeof form, text)}
-                />
-              </View>
-            ))}
+                  accessibilityRole="button"
+                  accessibilityLabel="Submit new provider"
+                >
+                  <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600' }}>Submit</Text>
+                </TouchableOpacity>
 
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
-              <TouchableOpacity
-                onPress={() => setModalVisible(false)}
-                style={{ padding: 12, backgroundColor: '#ccc', borderRadius: 8 }}
-              >
-                <Text style={{ fontSize: 16 }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleAddProvider}
-                style={{ padding: 12, backgroundColor: '#28a745', borderRadius: 8 }}
-              >
-                <Text style={{ color: 'white', fontSize: 16 }}>Submit</Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        </Modal>
-      </View>
-    </KeyboardAvoidingView>
+                <TouchableOpacity
+                  onPress={() => setModalVisible(false)}
+                  style={{
+                    marginTop: 12,
+                    padding: 12,
+                    alignItems: 'center',
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel adding provider"
+                >
+                  <Text style={{ color: '#007AFF', fontSize: 18 }}>Cancel</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </SafeAreaView>
+          </Modal>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
