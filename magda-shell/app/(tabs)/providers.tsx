@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+// app/(tabs)/providers.tsx
+
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,15 +8,15 @@ import {
   TouchableOpacity,
   FlatList,
   Modal,
-  KeyboardAvoidingView,
+  StyleSheet,
   Platform,
   ScrollView,
+  KeyboardAvoidingView,
   Alert,
-  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-// ✅ Use this safe UUID generator instead:
-import uuid from 'react-native-uuid';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { v4 as uuidv4 } from 'uuid';
 
 interface Provider {
   id: string;
@@ -29,244 +31,290 @@ interface Provider {
 
 const ProvidersScreen = () => {
   const [providers, setProviders] = useState<Provider[]>([]);
-  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [search, setSearch] = useState('');
+  const [activeProvider, setActiveProvider] = useState<Provider | null>(null);
 
-  const [form, setForm] = useState<Omit<Provider, 'id'>>({
-    name: '',
-    specialty: '',
-    address: '',
-    phone: '',
-    email: '',
-    fax: '',
-    notes: '',
-  });
-
-  const handleAddProvider = () => {
-    if (!form.name.trim()) {
-      Alert.alert('Validation', 'Provider name or facility is required.');
-      return;
-    }
-
-    const newProvider: Provider = { id: uuid.v4().toString(), ...form };
-    setProviders([...providers, newProvider]);
-    resetForm();
-    setModalVisible(false);
+  const handleOpenProvider = (provider: Provider) => {
+    setActiveProvider(provider);
+    setModalVisible(true);
   };
 
-  const resetForm = () => {
-    setForm({
-      name: '',
-      specialty: '',
-      address: '',
-      phone: '',
-      email: '',
-      fax: '',
-      notes: '',
-    });
-    setSelectedProvider(null);
-  };
-
-  const handleDelete = (id: string) => {
-    Alert.alert('Confirm Delete', 'Are you sure you want to delete this provider?', [
+  const handleDeleteProvider = (id: string) => {
+    Alert.alert('Delete Provider', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => {
-        setProviders(providers.filter(p => p.id !== id));
-      }},
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          setProviders(prev => prev.filter(p => p.id !== id));
+          setModalVisible(false);
+        },
+      },
     ]);
   };
 
-  const handleAIUploadDetection = () => {
-    // Simulate AI detection from uploaded file
-    const detected: Omit<Provider, 'id'> = {
-      name: 'Dr. Marcus Welby',
-      specialty: 'Family Medicine',
-      address: '123 Health St, Medtown',
-      phone: '555-1010',
-      email: 'marcus@example.com',
-      fax: '555-2020',
-      notes: 'Visit: 2023-12-01\nVisit: 2024-01-10',
-    };
-
-    Alert.alert(
-      'AI Detected Provider Info',
-      'AI found provider information. Would you like to add as a new provider or update an existing one?',
-      [
-        {
-          text: 'Create New',
-          onPress: () => setProviders([...providers, { id: uuid.v4().toString()
-            , ...detected }]),
-        },
-        {
-          text: 'Update Existing',
-          onPress: () => {
-            if (providers.length > 0) {
-              const updated = [...providers];
-              updated[0] = { ...updated[0], ...detected };
-              setProviders(updated);
-            } else {
-              Alert.alert('No existing providers to update.');
-            }
-          },
-        },
-      ]
-    );
+  const handleSaveProvider = () => {
+    if (activeProvider) {
+      setProviders(prev => {
+        const exists = prev.find(p => p.id === activeProvider.id);
+        if (exists) {
+          return prev.map(p => (p.id === activeProvider.id ? activeProvider : p));
+        } else {
+          return [...prev, { ...activeProvider, id: uuidv4() }];
+        }
+      });
+      setModalVisible(false);
+    }
   };
 
-  useEffect(() => {
-    handleAIUploadDetection(); // Automatically run on screen load (simulate upload detection)
-  }, []);
+  const renderProviderCard = ({ item }: { item: Provider }) => (
+    <TouchableOpacity
+      onPress={() => handleOpenProvider(item)}
+      accessibilityLabel={`Open details for ${item.name}`}
+      style={styles.card}
+    >
+      <Text style={styles.cardTitle}>{item.name}</Text>
+      <Text style={styles.cardSubtitle}>{item.specialty}</Text>
+    </TouchableOpacity>
+  );
 
-  const filteredProviders = providers.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.specialty.toLowerCase().includes(search.toLowerCase())
+  const renderInput = (
+    label: string,
+    field: keyof Omit<Provider, 'id'>,
+    placeholderIcon: keyof typeof Ionicons.glyphMap,
+  ) => (
+    <View style={styles.inputGroup}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.inputWrapper}>
+        <Ionicons name={placeholderIcon} size={20} color="#666" style={styles.icon} />
+        <TextInput
+          style={styles.input}
+          placeholder={label}
+          placeholderTextColor="#888"
+          value={activeProvider?.[field] || ''}
+          onChangeText={text => setActiveProvider(prev => prev ? { ...prev, [field]: text } : prev)}
+          accessibilityLabel={label}
+        />
+      </View>
+    </View>
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={80}
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.header}>Providers & Facilities</Text>
+
+      <FlatList
+        data={providers}
+        keyExtractor={item => item.id}
+        renderItem={renderProviderCard}
+        contentContainerStyle={styles.list}
+        accessibilityRole="list"
+      />
+
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={() => {
+          setActiveProvider({
+            id: '',
+            name: '',
+            specialty: '',
+            address: '',
+            phone: '',
+            email: '',
+            fax: '',
+            notes: '',
+          });
+          setModalVisible(true);
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Add a provider or facility"
       >
-        <ScrollView contentContainerStyle={{ padding: 20 }}>
-          <Text style={{ fontSize: 28, fontWeight: 'bold', marginBottom: 20 }}>Providers</Text>
+        <Ionicons name="add-circle-outline" size={24} color="#fff" />
+        <Text style={styles.addButtonText}>Add Provider</Text>
+      </TouchableOpacity>
 
-          <TextInput
-            placeholder="Search providers"
-            value={search}
-            onChangeText={setSearch}
-            style={{
-              borderWidth: 1,
-              borderColor: '#ccc',
-              padding: 12,
-              borderRadius: 8,
-              marginBottom: 20,
-              fontSize: 16,
-            }}
-            accessibilityLabel="Search Providers"
-          />
-
-          {filteredProviders.map((provider) => (
-            <TouchableOpacity
-              key={provider.id}
-              onPress={() => {
-                setSelectedProvider(provider);
-                setModalVisible(true);
-              }}
-              style={{
-                borderWidth: 1,
-                borderColor: '#ccc',
-                padding: 15,
-                borderRadius: 8,
-                marginBottom: 12,
-              }}
-              accessibilityLabel={`Open ${provider.name} details`}
-            >
-              <Text style={{ fontSize: 18, fontWeight: '600' }}>{provider.name}</Text>
-              {provider.specialty ? (
-                <Text style={{ fontSize: 14, color: '#666' }}>{provider.specialty}</Text>
-              ) : null}
-            </TouchableOpacity>
-          ))}
-
-          <TouchableOpacity
-            onPress={() => {
-              resetForm();
-              setModalVisible(true);
-            }}
-            style={{
-              backgroundColor: '#007AFF',
-              padding: 15,
-              borderRadius: 8,
-              alignItems: 'center',
-              marginTop: 10,
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Add a provider or facility"
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalContainer}
           >
-            <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600' }}>➕ Add Provider or Facility</Text>
-          </TouchableOpacity>
+            <ScrollView contentContainerStyle={styles.form}>
+              <Text style={styles.modalTitle}>
+                {activeProvider?.id ? 'Edit Provider' : 'Add New Provider'}
+              </Text>
 
-          <Modal visible={modalVisible} animationType="slide">
-            <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
-              <ScrollView contentContainerStyle={{ padding: 20 }}>
-                <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 20 }}>
-                  {selectedProvider ? 'Edit Provider' : 'Add New Provider'}
-                </Text>
+              {renderInput('Name or Facility', 'name', 'business')}
+              {renderInput('Specialty', 'specialty', 'medkit')}
+              {renderInput('Address', 'address', 'location')}
+              {renderInput('Phone Number', 'phone', 'call')}
+              {renderInput('Email', 'email', 'mail')}
+              {renderInput('Fax Number', 'fax', 'print')}
+              {renderInput('Notes (visit dates, etc.)', 'notes', 'document-text')}
 
-                {(
-                  Object.keys(form) as (keyof Omit<Provider, 'id'>)[]
-                ).map((key) => (
-                  <View key={key} style={{ marginBottom: 16 }}>
-                    <Text style={{ fontSize: 16, fontWeight: '500', marginBottom: 4 }}>
-                      {key.charAt(0).toUpperCase() + key.slice(1)}
-                    </Text>
-                    <TextInput
-                      value={form[key]}
-                      onChangeText={(text) =>
-                        setForm((prev) => ({ ...prev, [key]: text }))
-                      }
-                      placeholder={
-                        {
-                          name: '🏥 Name or Facility',
-                          specialty: 'Specialty',
-                          address: '🏠 Address',
-                          phone: '📞 Phone',
-                          email: '✉️ Email',
-                          fax: '📠 Fax',
-                          notes: '📝 Notes',
-                        }[key]
-                      }
-                      style={{
-                        borderWidth: 1,
-                        borderColor: '#ccc',
-                        padding: 12,
-                        borderRadius: 8,
-                        fontSize: 16,
-                        backgroundColor: '#fff',
-                      }}
-                      multiline={key === 'notes'}
-                      accessibilityLabel={`${key} input`}
-                    />
-                  </View>
-                ))}
-
+              <View style={styles.buttonRow}>
                 <TouchableOpacity
-                  onPress={handleAddProvider}
-                  style={{
-                    backgroundColor: '#28a745',
-                    padding: 15,
-                    borderRadius: 8,
-                    alignItems: 'center',
-                    marginTop: 10,
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel="Submit new provider"
-                >
-                  <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600' }}>Submit</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton]}
                   onPress={() => setModalVisible(false)}
-                  style={{
-                    marginTop: 12,
-                    padding: 12,
-                    alignItems: 'center',
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel="Cancel adding provider"
+                  accessibilityLabel="Cancel"
                 >
-                  <Text style={{ color: '#007AFF', fontSize: 18 }}>Cancel</Text>
+                  <Text style={styles.buttonText}>Cancel</Text>
                 </TouchableOpacity>
-              </ScrollView>
-            </SafeAreaView>
-          </Modal>
-        </ScrollView>
-      </KeyboardAvoidingView>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.saveButton]}
+                  onPress={handleSaveProvider}
+                  accessibilityLabel="Submit provider info"
+                >
+                  <Text style={styles.buttonText}>Submit</Text>
+                </TouchableOpacity>
+              </View>
+
+              {activeProvider?.id && (
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => handleDeleteProvider(activeProvider.id)}
+                  accessibilityLabel="Delete provider"
+                >
+                  <Ionicons name="trash" size={20} color="#fff" />
+                  <Text style={styles.buttonText}>Delete</Text>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
 
 export default ProvidersScreen;
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#eef2f5',
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginVertical: 16,
+  },
+  list: {
+    paddingHorizontal: 16,
+  },
+  card: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    elevation: 3,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    color: '#666',
+  },
+  addButton: {
+    flexDirection: 'row',
+    backgroundColor: '#007AFF',
+    padding: 14,
+    margin: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    marginLeft: 10,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: '#0006',
+    justifyContent: 'center',
+  },
+  modalContainer: {
+    margin: 20,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  form: {
+    paddingBottom: 32,
+  },
+  inputGroup: {
+    marginBottom: 14,
+  },
+  label: {
+    fontSize: 14,
+    marginBottom: 6,
+    color: '#333',
+    fontWeight: '500',
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    backgroundColor: '#f8f9fb',
+  },
+  icon: {
+    marginRight: 6,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: '#000',
+    paddingVertical: 10,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
+  modalButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 10,
+    marginHorizontal: 6,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#aaa',
+  },
+  saveButton: {
+    backgroundColor: '#007AFF',
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  deleteButton: {
+    marginTop: 16,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    padding: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});
