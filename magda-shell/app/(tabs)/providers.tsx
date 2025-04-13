@@ -1,3 +1,5 @@
+import 'react-native-get-random-values';
+
 import React, { useState } from 'react';
 import { View, TextInput, Text, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Modal, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
