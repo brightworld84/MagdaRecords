@@ -11,7 +11,6 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { v4 as uuidv4 } from 'uuid';
 import { Ionicons } from '@expo/vector-icons';
 import * as Speech from 'expo-speech';
 import * as FileSystem from 'expo-file-system';
@@ -26,7 +25,7 @@ interface Provider {
   fax: string;
   notes: string;
 }
-
+const generateId = () => Math.random().toString(36).substring(2, 10);
 const defaultForm: Omit<Provider, 'id'> = {
   name: '',
   specialty: '',
@@ -50,7 +49,7 @@ const ProvidersScreen = () => {
 
   const simulateAIAutoDetection = () => {
     const newAIProvider: Provider = {
-      id: uuidv4(),
+      id: generateId(),
       name: 'Dr. Evelyn Chase',
       specialty: 'Pulmonology',
       address: '456 Respiratory Ln, Lungtown, CA',
@@ -103,7 +102,7 @@ const ProvidersScreen = () => {
     }
 
     const newProvider: Provider = {
-      id: uuidv4(),
+      id: generateId(),
       ...form,
     };
     setProviders((prev) => [...prev, newProvider]);
