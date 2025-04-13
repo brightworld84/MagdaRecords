@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -39,7 +39,7 @@ export default function ProvidersScreen() {
   });
 
   const handleAddProvider = () => {
-    const id = uuid.v4().toString();
+    const id = uuid.v4() as string;
     const provider: Provider = { id, ...newProvider };
     setProviders(prev => [...prev, provider]);
     setNewProvider({
@@ -75,29 +75,38 @@ export default function ProvidersScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={100}
       >
-        <Text style={styles.title}>Add New Provider or Facility</Text>
-        <ScrollView style={styles.form} contentContainerStyle={{ paddingBottom: 80 }}>
-          {Object.keys(newProvider).map(field => (
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+          <Text style={styles.title}>Add New Provider or Facility</Text>
+
+          {Object.entries(newProvider).map(([field, value]) => (
             <TextInput
               key={field}
               placeholder={`Enter ${field}`}
               placeholderTextColor="#999"
               style={styles.input}
-              value={newProvider[field as keyof typeof newProvider]}
+              value={value}
+              accessibilityLabel={`Enter ${field}`}
               onChangeText={val =>
                 handleInputChange(field as keyof Omit<Provider, 'id'>, val)
               }
             />
           ))}
 
-          <TouchableOpacity style={styles.addButton} onPress={handleAddProvider}>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={handleAddProvider}
+            accessibilityRole="button"
+            accessibilityLabel="Add a new provider or facility"
+          >
             <Text style={styles.addButtonText}>➕ Add Provider or Facility</Text>
           </TouchableOpacity>
 
           <Text style={styles.title}>Your Providers</Text>
+
           {providers.length === 0 && (
             <Text style={styles.noProviders}>No providers added yet.</Text>
           )}
+
           {providers.map(provider => (
             <TouchableOpacity
               key={provider.id}
@@ -110,9 +119,12 @@ export default function ProvidersScreen() {
                 styles.card,
                 selectedProviderId === provider.id && styles.selectedCard,
               ]}
+              accessibilityRole="button"
+              accessibilityLabel={`Provider card for ${provider.name}`}
             >
               <Text style={styles.cardTitle}>{provider.name}</Text>
               <Text style={styles.cardSubtitle}>{provider.specialty}</Text>
+
               {selectedProviderId === provider.id && (
                 <>
                   {Object.entries(provider).map(([key, val]) =>
@@ -134,6 +146,8 @@ export default function ProvidersScreen() {
                         ]
                       )
                     }
+                    accessibilityRole="button"
+                    accessibilityLabel={`Delete provider ${provider.name}`}
                   >
                     <Text style={styles.deleteButtonText}>🗑️ Delete</Text>
                   </TouchableOpacity>
@@ -150,21 +164,21 @@ export default function ProvidersScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f2f2f2',
+    backgroundColor: '#f8f9fa',
   },
   container: {
     flex: 1,
     paddingHorizontal: 16,
   },
+  scrollContainer: {
+    paddingBottom: 100,
+  },
   title: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
     paddingVertical: 12,
     textAlign: 'center',
-    color: '#1e1e1e',
-  },
-  form: {
-    marginBottom: 12,
+    color: '#212529',
   },
   input: {
     backgroundColor: '#ffffff',
@@ -172,12 +186,12 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 18,
     marginBottom: 12,
-    borderColor: '#ccc',
+    borderColor: '#ced4da',
     borderWidth: 1,
-    color: '#333',
+    color: '#212529',
   },
   addButton: {
-    backgroundColor: '#0077cc',
+    backgroundColor: '#0d6efd',
     padding: 14,
     borderRadius: 10,
     alignItems: 'center',
@@ -191,7 +205,7 @@ const styles = StyleSheet.create({
   noProviders: {
     fontSize: 16,
     textAlign: 'center',
-    color: '#888',
+    color: '#6c757d',
     padding: 12,
   },
   card: {
@@ -200,31 +214,31 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     elevation: 2,
+    borderColor: '#dee2e6',
     borderWidth: 1,
-    borderColor: '#ddd',
   },
   selectedCard: {
-    backgroundColor: '#e0f7ff',
+    backgroundColor: '#e7f1ff',
   },
   cardTitle: {
     fontSize: 20,
     fontWeight: '700',
     marginBottom: 4,
-    color: '#333',
+    color: '#212529',
   },
   cardSubtitle: {
     fontSize: 16,
     fontWeight: '500',
     marginBottom: 8,
-    color: '#666',
+    color: '#495057',
   },
   cardDetail: {
     fontSize: 16,
-    color: '#444',
+    color: '#343a40',
     marginVertical: 2,
   },
   deleteButton: {
-    backgroundColor: '#ff4444',
+    backgroundColor: '#dc3545',
     padding: 10,
     borderRadius: 8,
     alignItems: 'center',
