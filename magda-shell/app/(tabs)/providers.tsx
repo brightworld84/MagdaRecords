@@ -95,7 +95,8 @@ const ProvidersScreen = () => {
       [
         {
           text: 'Create New',
-          onPress: () => setProviders([...providers, { id: uuidv4(), ...detected }]),
+          onPress: () => setProviders([...providers, { id: uuid.v4().toString()
+            , ...detected }]),
         },
         {
           text: 'Update Existing',
