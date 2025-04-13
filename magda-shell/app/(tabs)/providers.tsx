@@ -84,81 +84,79 @@ export default function Providers() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <ScrollView>
-        <Text accessibilityRole="header" style={styles.header}>
-          My Providers
-        </Text>
+      <Text accessibilityRole="header" style={styles.header}>
+        My Providers
+      </Text>
 
-        <TouchableOpacity
-          onPress={() => setModalVisible(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Add a new provider"
-          style={styles.addButton}
-        >
-          <Text style={styles.addButtonText}>➕ Add New Provider</Text>
-        </TouchableOpacity>
+      <TouchableOpacity
+        onPress={() => setModalVisible(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Add a new provider"
+        style={styles.addButton}
+      >
+        <Text style={styles.addButtonText}>➕ Add New Provider</Text>
+      </TouchableOpacity>
 
-        <FlatList
-          data={providers}
-          keyExtractor={(item) => item.id}
-          renderItem={renderProvider}
-          contentContainerStyle={{ paddingBottom: 120 }}
-        />
+      <FlatList
+        data={providers}
+        keyExtractor={(item) => item.id}
+        renderItem={renderProvider}
+        contentContainerStyle={{ paddingBottom: 120 }}
+      />
 
-        <Modal visible={modalVisible} animationType="slide">
-          <ScrollView contentContainerStyle={styles.modalContent}>
-            {fields.map((field) => (
-              <View key={field} style={styles.inputGroup}>
-                <Text style={styles.label}>
-                  {field === 'name'
-                    ? '🏥 Name or Facility'
-                    : field === 'specialty'
-                    ? '💼 Specialty'
-                    : field === 'address'
-                    ? '🏠 Address'
-                    : field === 'phone'
-                    ? '📞 Phone'
-                    : field === 'email'
-                    ? '✉️ Email'
-                    : field === 'fax'
-                    ? '📠 Fax'
-                    : '📝 Notes'}
-                </Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData[field]}
-                  onChangeText={(text) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      [field]: text,
-                    }))
-                  }
-                  placeholder={`Enter ${field}`}
-                  accessibilityLabel={`Input for ${field}`}
-                />
-              </View>
-            ))}
+      <Modal visible={modalVisible} animationType="slide">
+        <ScrollView contentContainerStyle={styles.modalContent}>
+          {fields.map((field) => (
+            <View key={field} style={styles.inputGroup}>
+              <Text style={styles.label}>
+                {field === 'name'
+                  ? '🏥 Name or Facility'
+                  : field === 'specialty'
+                  ? '💼 Specialty'
+                  : field === 'address'
+                  ? '🏠 Address'
+                  : field === 'phone'
+                  ? '📞 Phone'
+                  : field === 'email'
+                  ? '✉️ Email'
+                  : field === 'fax'
+                  ? '📠 Fax'
+                  : '📝 Notes'}
+              </Text>
+              <TextInput
+                style={styles.input}
+                value={formData[field]}
+                onChangeText={(text) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    [field]: text,
+                  }))
+                }
+                placeholder={`Enter ${field}`}
+                accessibilityLabel={`Input for ${field}`}
+              />
+            </View>
+          ))}
 
-            <TouchableOpacity
-              onPress={handleAddProvider}
-              style={styles.saveButton}
-              accessibilityRole="button"
-              accessibilityLabel="Save provider"
-            >
-              <Text style={styles.saveButtonText}>Save Provider</Text>
-            </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleAddProvider}
+            style={styles.saveButton}
+            accessibilityRole="button"
+            accessibilityLabel="Save provider"
+          >
+            <Text style={styles.saveButtonText}>Save Provider</Text>
+          </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={() => setModalVisible(false)}
-              style={styles.cancelButton}
-              accessibilityRole="button"
-              accessibilityLabel="Cancel and close form"
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </Modal>
-      </ScrollView>
+          <TouchableOpacity
+            onPress={() => setModalVisible(false)}
+            style={styles.cancelButton}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel and close form"
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
