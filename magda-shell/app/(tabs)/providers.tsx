@@ -13,7 +13,8 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { v4 as uuidv4 } from 'uuid';
+// ✅ Use this safe UUID generator instead:
+import uuid from 'react-native-uuid';
 
 interface Provider {
   id: string;
@@ -48,7 +49,7 @@ const ProvidersScreen = () => {
       return;
     }
 
-    const newProvider: Provider = { id: uuidv4(), ...form };
+    const newProvider: Provider = { id: uuid.v4().toString(), ...form };
     setProviders([...providers, newProvider]);
     resetForm();
     setModalVisible(false);
