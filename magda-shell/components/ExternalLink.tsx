@@ -1,24 +1,39 @@
-import { Link } from 'expo-router';
-import { openBrowserAsync } from 'expo-web-browser';
-import { type ComponentProps } from 'react';
-import { Platform } from 'react-native';
+import React from 'react';
+import { View, Pressable } from 'react-native';
+import { ThemedText } from './ThemedText';
+import { ThemedView } from './ThemedView';
+import { IconSymbol } from './ui/IconSymbol';
+import { Colors } from '../constants/Colors';
+import { useColorScheme } from '../hooks/useColorScheme';
+import * as WebBrowser from 'expo-web-browser';
 
-type Props = Omit<ComponentProps<typeof Link>, 'href'> & { href: string };
+export default function ExternalLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  const colorScheme = useColorScheme() || 'light';
 
-export function ExternalLink({ href, ...rest }: Props) {
+  const handlePress = async () => {
+    await WebBrowser.openBrowserAsync(href);
+  };
+
   return (
-    <Link
-      target="_blank"
-      {...rest}
-      href={href}
-      onPress={async (event) => {
-        if (Platform.OS !== 'web') {
-          // Prevent the default behavior of linking to the default browser on native.
-          event.preventDefault();
-          // Open the link in an in-app browser.
-          await openBrowserAsync(href);
-        }
-      }}
-    />
+    <Pressable onPress={handlePress}>
+      <ThemedView
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          padding: 10,
+          borderRadius: 8,
+          backgroundColor: Colors[colorScheme].background,
+        }}
+      >
+        <IconSymbol name="arrow.up.right" size={16} color={Colors[colorScheme].text} />
+        <ThemedText style={{ marginLeft: 8 }}>{children}</ThemedText>
+      </ThemedView>
+    </Pressable>
   );
 }
