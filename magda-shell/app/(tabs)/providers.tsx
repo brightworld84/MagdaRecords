@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, Modal, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
-import { ScrollView } from 'react-native-gesture-handler';
+import { View, TextInput, Text, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Modal, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { v4 as uuidv4 } from 'uuid';
 
-interface Provider {
+type Provider = {
   id: string;
   name: string;
   specialty: string;
@@ -12,12 +12,14 @@ interface Provider {
   email: string;
   fax: string;
   notes: string;
-}
+};
 
 export default function ProvidersScreen() {
   const [providers, setProviders] = useState<Provider[]>([]);
-  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
-  const [isModalVisible, setModalVisible] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
   const [formData, setFormData] = useState<Omit<Provider, 'id'>>({
     name: '',
     specialty: '',
@@ -28,228 +30,216 @@ export default function ProvidersScreen() {
     notes: '',
   });
 
-  const openModal = () => {
-    setFormData({
-      name: '',
-      specialty: '',
-      address: '',
-      phone: '',
-      email: '',
-      fax: '',
-      notes: '',
-    });
-    setSelectedProviderId(null);
+  const handleSaveProvider = () => {
+    if (selectedProvider) {
+      // Update existing
+      setProviders((prev) =>
+        prev.map((p) => (p.id === selectedProvider.id ? { ...selectedProvider, ...formData } : p))
+      );
+    } else {
+      // Create new
+      setProviders((prev) => [...prev, { id: uuidv4(), ...formData }]);
+    }
+    setModalVisible(false);
+    setFormData({ name: '', specialty: '', address: '', phone: '', email: '', fax: '', notes: '' });
+    setSelectedProvider(null);
+  };
+
+  const handleEditProvider = (provider: Provider) => {
+    setSelectedProvider(provider);
+    setFormData({ ...provider });
     setModalVisible(true);
   };
 
-  const handleSubmit = () => {
-    const newProvider: Provider = { id: uuidv4(), ...formData };
-    setProviders([...providers, newProvider]);
-    setModalVisible(false);
+  const handleRemoveProvider = (id: string) => {
+    setProviders((prev) => prev.filter((p) => p.id !== id));
   };
 
-  const handleInputChange = (field: keyof Provider, value: string) => {
-    setFormData({ ...formData, [field]: value });
+  const handleSimulateAIImport = () => {
+    const extracted: Provider = {
+      id: uuidv4(),
+      name: 'Dr. Jane Doe',
+      specialty: 'Cardiology',
+      address: '123 Heart Ave, Pulse City',
+      phone: '(123) 456-7890',
+      email: 'janedoe@hospital.org',
+      fax: '(123) 555-0123',
+      notes: 'Visited on 2023-12-01 for chest pain.',
+    };
+
+    // Check for existing match
+    const existing = providers.find((p) => p.name === extracted.name);
+    if (existing) {
+      setSelectedProvider(existing);
+      setFormData({ ...existing, ...extracted });
+    } else {
+      setFormData({ ...extracted });
+    }
+
+    setModalVisible(true);
   };
 
-  const renderProvider = ({ item }: { item: Provider }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => setSelectedProviderId(item.id === selectedProviderId ? null : item.id)}
-      accessibilityRole="button"
-      accessibilityLabel={`Provider: ${item.name}`}
-    >
-      <Text style={styles.cardTitle}>{item.name}</Text>
-      {item.specialty ? <Text style={styles.cardSub}>{item.specialty}</Text> : null}
-
-      {selectedProviderId === item.id && (
-        <View style={styles.details}>
-          <Text style={styles.label}>Address:</Text>
-          <Text style={styles.info}>{item.address}</Text>
-          <Text style={styles.label}>Phone:</Text>
-          <Text style={styles.info}>{item.phone}</Text>
-          <Text style={styles.label}>Email:</Text>
-          <Text style={styles.info}>{item.email}</Text>
-          <Text style={styles.label}>Fax:</Text>
-          <Text style={styles.info}>{item.fax}</Text>
-          <Text style={styles.label}>Notes:</Text>
-          <Text style={styles.info}>{item.notes}</Text>
-        </View>
-      )}
-    </TouchableOpacity>
+  const filteredProviders = providers.filter(
+    (p) =>
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.specialty.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.container}>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
+      <Text style={styles.header}>Your Providers</Text>
+
+      <View style={styles.searchBar}>
+        <Ionicons name="search" size={20} color="#666" style={{ marginRight: 8 }} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search by name or specialty"
+          placeholderTextColor="#999"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          accessible accessibilityLabel="Search providers"
+        />
+      </View>
+
       <FlatList
-        data={providers}
-        renderItem={renderProvider}
+        data={filteredProviders}
         keyExtractor={(item) => item.id}
-        ListEmptyComponent={<Text style={styles.emptyText}>No providers added yet.</Text>}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={{ paddingBottom: 120 }}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            onPress={() => handleEditProvider(item)}
+            style={styles.providerCard}
+            accessibilityLabel={`Provider: ${item.name}, Specialty: ${item.specialty}`}
+          >
+            <Text style={styles.providerName}>{item.name}</Text>
+            <Text style={styles.providerSpecialty}>{item.specialty}</Text>
+          </TouchableOpacity>
+        )}
       />
 
-      <TouchableOpacity style={styles.addButton} onPress={openModal} accessibilityRole="button" accessibilityLabel="Add a provider">
-        <Text style={styles.addButtonText}>➕ Add a Provider or Facility</Text>
+      <TouchableOpacity
+        onPress={() => {
+          setSelectedProvider(null);
+          setFormData({ name: '', specialty: '', address: '', phone: '', email: '', fax: '', notes: '' });
+          setModalVisible(true);
+        }}
+        style={styles.addButton}
+        accessibilityLabel="Add a new provider or facility"
+      >
+        <Ionicons name="add-circle" size={24} color="white" />
+        <Text style={styles.addButtonText}>Add Provider or Facility</Text>
       </TouchableOpacity>
 
-      <Modal visible={isModalVisible} animationType="slide">
-        <ScrollView contentContainerStyle={styles.modalContainer} keyboardShouldPersistTaps="handled">
-          <Text style={styles.modalTitle}>Add Provider</Text>
+      <TouchableOpacity
+        onPress={handleSimulateAIImport}
+        style={[styles.addButton, { marginTop: 10, backgroundColor: '#5b8df9' }]}
+        accessibilityLabel="Simulate AI-imported provider"
+      >
+        <Ionicons name="sparkles-outline" size={20} color="white" />
+        <Text style={styles.addButtonText}>AI Import Provider</Text>
+      </TouchableOpacity>
 
-          {[
-            { label: '🏥 Name or Facility', key: 'name' },
-            { label: 'Specialty', key: 'specialty' },
-            { label: '🏠 Address', key: 'address' },
-            { label: '📞 Phone', key: 'phone' },
-            { label: '✉️ Email', key: 'email' },
-            { label: '📠 Fax', key: 'fax' },
-            { label: '📝 Notes', key: 'notes' },
-          ].map(({ label, key }) => (
-            <View key={key} style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>{label}</Text>
+      <Modal visible={modalVisible} animationType="slide">
+        <KeyboardAvoidingView behavior="padding" style={styles.modalContainer}>
+          <Text style={styles.modalHeader}>
+            {selectedProvider ? 'Update Provider' : 'Add Provider'}
+          </Text>
+          {(['name', 'specialty', 'address', 'phone', 'email', 'fax', 'notes'] as const).map((key) => (
+            <View key={key} style={{ marginBottom: 12 }}>
+              <Text style={styles.inputLabel}>
+                {key.charAt(0).toUpperCase() + key.slice(1)}
+              </Text>
               <TextInput
                 style={styles.input}
-                placeholder={label}
-                placeholderTextColor="#999"
-                value={formData[key as keyof Provider]}
-                onChangeText={(text) => handleInputChange(key as keyof Provider, text)}
-                accessibilityLabel={label}
+                value={formData[key]}
+                onChangeText={(text) => setFormData((prev) => ({ ...prev, [key]: text }))}
+                placeholder={`Enter ${key} here`}
+                placeholderTextColor="#888"
+                accessible
+                accessibilityLabel={`${key} input`}
               />
             </View>
           ))}
-
           <View style={styles.modalButtons}>
             <TouchableOpacity style={styles.cancelButton} onPress={() => setModalVisible(false)}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={styles.modalButtonText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-              <Text style={styles.submitButtonText}>Submit</Text>
+            <TouchableOpacity style={styles.submitButton} onPress={handleSaveProvider}>
+              <Text style={styles.modalButtonText}>Submit</Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FAFAFA',
-  },
-  list: {
-    padding: 20,
-  },
-  card: {
-    backgroundColor: '#fff',
+  container: { flex: 1, backgroundColor: '#f5f7fa', padding: 16 },
+  header: { fontSize: 24, fontWeight: 'bold', marginBottom: 12, color: '#333' },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eee',
+    padding: 10,
     borderRadius: 10,
-    padding: 18,
-    marginBottom: 14,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 2 },
+    marginBottom: 12,
   },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#333',
-  },
-  cardSub: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 2,
-  },
-  details: {
-    marginTop: 12,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginTop: 8,
-    color: '#555',
-  },
-  info: {
-    fontSize: 16,
-    color: '#333',
-  },
-  addButton: {
-    backgroundColor: '#007AFF',
-    margin: 20,
+  searchInput: { flex: 1, fontSize: 16 },
+  providerCard: {
+    backgroundColor: '#fff',
     padding: 16,
     borderRadius: 10,
+    marginBottom: 10,
+    elevation: 2,
+  },
+  providerName: { fontSize: 18, fontWeight: '600', color: '#222' },
+  providerSpecialty: { fontSize: 14, color: '#555' },
+  addButton: {
+    position: 'absolute',
+    bottom: 80,
+    left: 20,
+    right: 20,
+    backgroundColor: '#28a745',
+    paddingVertical: 14,
+    borderRadius: 10,
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  emptyText: {
-    textAlign: 'center',
-    fontSize: 16,
-    color: '#999',
-    marginTop: 40,
-  },
-  modalContainer: {
-    padding: 24,
-    backgroundColor: '#F8F9FA',
-    flexGrow: 1,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 20,
-    color: '#222',
-    textAlign: 'center',
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-    color: '#333',
-  },
+  addButtonText: { fontSize: 16, color: '#fff', marginLeft: 8, fontWeight: '600' },
+  modalContainer: { flex: 1, padding: 20, backgroundColor: '#fff' },
+  modalHeader: { fontSize: 20, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+  inputLabel: { fontSize: 16, marginBottom: 4, color: '#333' },
   input: {
-    backgroundColor: '#fff',
-    padding: 14,
-    fontSize: 16,
+    backgroundColor: '#f1f1f1',
+    padding: 12,
     borderRadius: 8,
-    borderColor: '#ccc',
-    borderWidth: 1,
+    fontSize: 16,
+    color: '#111',
   },
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 28,
+    marginTop: 30,
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: '#ccc',
     padding: 14,
-    borderRadius: 8,
-    marginRight: 12,
-  },
-  cancelButtonText: {
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    borderRadius: 10,
+    marginRight: 10,
   },
   submitButton: {
     flex: 1,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007bff',
     padding: 14,
-    borderRadius: 8,
+    borderRadius: 10,
   },
-  submitButtonText: {
+  modalButtonText: {
     textAlign: 'center',
-    fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: '#fff',
+    fontSize: 16,
   },
 });
