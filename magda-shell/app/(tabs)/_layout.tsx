@@ -1,54 +1,40 @@
 import { Tabs } from 'expo-router';
-import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
+import { useColorScheme } from 'react-native';
 
 export default function TabLayout() {
+  const colorScheme = useColorScheme();
+
   return (
-    <Tabs>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="records"
-        options={{
-          title: 'Records',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="folder" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="providers"
-        options={{
-          title: 'Providers',
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesome5 name="user-md" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="ai"
-        options={{
-          title: 'AI Assistant',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubbles" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="upload"
-        options={{
-          title: 'Upload',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cloud-upload" size={size} color={color} />
-          ),
-        }}
-      />
-    </Tabs>
+    <Tabs
+      screenOptions={({ route }: { route: { name: string } }) => ({
+        tabBarIcon: ({ color, size }: { color: string; size: number }) => {
+          let iconName: keyof typeof Ionicons.glyphMap = 'home';
+
+          switch (route.name) {
+            case 'index':
+              iconName = 'home';
+              break;
+            case 'records':
+              iconName = 'document-text';
+              break;
+            case 'upload':
+              iconName = 'cloud-upload';
+              break;
+            case 'providers':
+              iconName = 'people';
+              break;
+            case 'ai':
+              iconName = 'medkit'; // valid Ionicon name
+              break;
+          }
+
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: 'dodgerblue',
+        tabBarInactiveTintColor: 'gray',
+        headerShown: false,
+      })}
+    />
   );
 }
