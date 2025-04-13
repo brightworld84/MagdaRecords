@@ -1,22 +1,20 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   Modal,
   StyleSheet,
-  SafeAreaView,
-  Platform,
-  KeyboardAvoidingView,
-  ScrollView,
-  Pressable
-} from "react-native";
-import { AntDesign } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
-type Provider = {
+interface Provider {
   id: string;
   name: string;
   specialty: string;
@@ -25,249 +23,249 @@ type Provider = {
   email: string;
   fax: string;
   notes: string;
-};
+}
 
 export default function ProvidersScreen() {
   const [providers, setProviders] = useState<Provider[]>([]);
-  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [newProvider, setNewProvider] = useState<Omit<Provider, "id">>({
-    name: "",
-    specialty: "",
-    address: "",
-    phone: "",
-    email: "",
-    fax: "",
-    notes: "",
+  const [newProvider, setNewProvider] = useState<Omit<Provider, 'id'>>({
+    name: '',
+    specialty: '',
+    address: '',
+    phone: '',
+    email: '',
+    fax: '',
+    notes: '',
   });
 
-  const insets = useSafeAreaInsets();
-
-  const handleAddProvider = () => {
-    const id = Date.now().toString();
-    setProviders([...providers, { id, ...newProvider }]);
+  const addProvider = () => {
+    setProviders((prev) => [
+      ...prev,
+      { id: Date.now().toString(), ...newProvider },
+    ]);
     setNewProvider({
-      name: "",
-      specialty: "",
-      address: "",
-      phone: "",
-      email: "",
-      fax: "",
-      notes: "",
+      name: '',
+      specialty: '',
+      address: '',
+      phone: '',
+      email: '',
+      fax: '',
+      notes: '',
     });
     setModalVisible(false);
   };
 
-  const handleSelectProvider = (provider: Provider) => {
-    setSelectedProvider(provider);
-  };
+  const renderProvider = ({ item }: { item: Provider }) => (
+    <TouchableOpacity
+      style={styles.providerCard}
+      accessibilityLabel={`View details for ${item.name}`}
+      onPress={() => {
+        alert(
+          `🏥 ${item.name}\n📋 Specialty: ${item.specialty}\n🏠 ${item.address}\n📞 ${item.phone}\n✉️ ${item.email}\n📠 ${item.fax}\n📝 ${item.notes}`
+        );
+      }}
+    >
+      <Text style={styles.providerName}>{item.name}</Text>
+      <Text style={styles.providerSpecialty}>{item.specialty}</Text>
+    </TouchableOpacity>
+  );
 
   return (
-    <SafeAreaView style={[styles.safeArea, { paddingTop: insets.top || 20 }]}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={{ flex: 1 }}
+    <SafeAreaView style={styles.container}>
+      <FlatList
+        data={providers}
+        keyExtractor={(item) => item.id}
+        renderItem={renderProvider}
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>
+            No providers saved yet. Add your doctor, clinic, or specialist.
+          </Text>
+        }
+        contentContainerStyle={styles.listContainer}
+      />
+
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={() => setModalVisible(true)}
+        accessibilityLabel="Add a new provider or facility"
       >
-        <View style={styles.container}>
-          <Text style={styles.title}>Your Providers</Text>
+        <Ionicons name="add-circle-outline" size={28} color="#fff" />
+        <Text style={styles.addButtonText}>Add Provider or Facility</Text>
+      </TouchableOpacity>
 
-          <FlatList
-            data={providers}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.list}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.card}
-                onPress={() => handleSelectProvider(item)}
-                accessible
-                accessibilityLabel={`View details for ${item.name}, ${item.specialty}`}
-              >
-                <Text style={styles.cardTitle}>{item.name}</Text>
-                <Text style={styles.cardSubtitle}>{item.specialty}</Text>
-              </TouchableOpacity>
-            )}
-          />
-
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => setModalVisible(true)}
-            accessible
-            accessibilityLabel="Add new provider"
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <ScrollView
+            style={styles.modalContent}
+            contentContainerStyle={{ paddingBottom: 100 }}
+            keyboardShouldPersistTaps="handled"
           >
-            <AntDesign name="pluscircle" size={28} color="#fff" />
-          </TouchableOpacity>
+            <Text style={styles.modalTitle}>Add Provider or Facility</Text>
 
-          <Modal visible={modalVisible} animationType="slide">
-            <SafeAreaView style={styles.modalContainer}>
-              <ScrollView
-                contentContainerStyle={styles.scrollContainer}
-                keyboardShouldPersistTaps="handled"
+            {[
+              { label: '🏥 Name or Facility', key: 'name' },
+              { label: '📋 Specialty', key: 'specialty' },
+              { label: '🏠 Address', key: 'address' },
+              { label: '📞 Phone', key: 'phone' },
+              { label: '✉️ Email', key: 'email' },
+              { label: '📠 Fax', key: 'fax' },
+              { label: '📝 Notes (e.g. visit dates)', key: 'notes' },
+            ].map((field) => (
+              <View key={field.key} style={styles.inputGroup}>
+                <Text style={styles.label}>{field.label}</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder={field.label}
+                  value={newProvider[field.key as keyof typeof newProvider]}
+                  onChangeText={(text) =>
+                    setNewProvider((prev) => ({
+                      ...prev,
+                      [field.key]: text,
+                    }))
+                  }
+                  accessibilityLabel={`Enter ${field.label}`}
+                  placeholderTextColor="#999"
+                />
+              </View>
+            ))}
+
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setModalVisible(false)}
               >
-                <Text style={styles.modalTitle}>Add Provider</Text>
-                {Object.keys(newProvider).map((key) => (
-                  <View key={key} style={styles.inputGroup}>
-                    <Text style={styles.label}>{key[0].toUpperCase() + key.slice(1)}</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder={`Enter ${key}`}
-                      placeholderTextColor="#999"
-                      value={newProvider[key as keyof typeof newProvider]}
-                      onChangeText={(text) =>
-                        setNewProvider((prev) => ({ ...prev, [key]: text }))
-                      }
-                      accessible
-                      accessibilityLabel={`${key} input`}
-                    />
-                  </View>
-                ))}
-                <View style={styles.modalActions}>
-                  <Pressable
-                    style={[styles.button, styles.cancel]}
-                    onPress={() => setModalVisible(false)}
-                    accessibilityLabel="Cancel adding provider"
-                  >
-                    <Text style={styles.buttonText}>Cancel</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.button, styles.submit]}
-                    onPress={handleAddProvider}
-                    accessibilityLabel="Submit new provider"
-                  >
-                    <Text style={styles.buttonText}>Submit</Text>
-                  </Pressable>
-                </View>
-              </ScrollView>
-            </SafeAreaView>
-          </Modal>
-
-          <Modal visible={!!selectedProvider} animationType="slide">
-            <SafeAreaView style={styles.modalContainer}>
-              <ScrollView contentContainerStyle={styles.scrollContainer}>
-                <Text style={styles.modalTitle}>Provider Details</Text>
-                {selectedProvider &&
-                  Object.entries(selectedProvider).map(([key, value]) => (
-                    key !== "id" && (
-                      <View key={key} style={styles.inputGroup}>
-                        <Text style={styles.label}>{key[0].toUpperCase() + key.slice(1)}</Text>
-                        <Text style={styles.detail}>{value}</Text>
-                      </View>
-                    )
-                  ))}
-                <Pressable
-                  style={[styles.button, styles.cancel]}
-                  onPress={() => setSelectedProvider(null)}
-                  accessibilityLabel="Close provider details"
-                >
-                  <Text style={styles.buttonText}>Close</Text>
-                </Pressable>
-              </ScrollView>
-            </SafeAreaView>
-          </Modal>
-        </View>
-      </KeyboardAvoidingView>
+                <Text style={styles.buttonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.submitButton]}
+                onPress={addProvider}
+              >
+                <Text style={styles.buttonText}>Submit</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#f9f9f9",
-  },
   container: {
     flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  listContainer: {
     padding: 16,
-    backgroundColor: "#f9f9f9",
   },
-  title: {
-    fontSize: 22,
-    fontWeight: "600",
-    marginBottom: 12,
-    color: "#333",
-  },
-  list: {
-    paddingBottom: 80,
-  },
-  card: {
-    backgroundColor: "#fff",
+  providerCard: {
+    backgroundColor: '#fff',
     padding: 16,
-    borderRadius: 12,
     marginBottom: 12,
+    borderRadius: 10,
     elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
   },
-  cardTitle: {
+  providerName: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: "#111",
+    fontWeight: '600',
+    color: '#111',
   },
-  cardSubtitle: {
+  providerSpecialty: {
     fontSize: 14,
-    color: "#555",
+    color: '#555',
+    marginTop: 4,
   },
   addButton: {
-    position: "absolute",
-    right: 20,
-    bottom: 20,
-    backgroundColor: "#007AFF",
-    borderRadius: 30,
-    padding: 10,
-    elevation: 5,
+    backgroundColor: '#2563EB',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 50,
+    margin: 16,
+    alignSelf: 'center',
+  },
+  addButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+    marginLeft: 8,
   },
   modalContainer: {
     flex: 1,
-    padding: 16,
-    backgroundColor: "#fff",
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'flex-end',
   },
-  scrollContainer: {
-    paddingBottom: 40,
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '90%',
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: "600",
+    fontWeight: '700',
     marginBottom: 20,
+    color: '#111',
+    alignSelf: 'center',
   },
   inputGroup: {
     marginBottom: 14,
   },
   label: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: '600',
+    color: '#333',
     marginBottom: 4,
-    color: "#222",
   },
   input: {
-    height: 44,
-    borderColor: "#ccc",
-    borderWidth: 1,
+    backgroundColor: '#F3F4F6',
     borderRadius: 8,
-    paddingHorizontal: 10,
-    backgroundColor: "#fafafa",
-  },
-  detail: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     fontSize: 16,
-    color: "#333",
-    paddingVertical: 6,
+    color: '#111',
   },
-  modalActions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 20,
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 24,
   },
-  button: {
+  modalButton: {
     flex: 1,
     paddingVertical: 12,
-    alignItems: "center",
     borderRadius: 8,
-    marginHorizontal: 8,
+    marginHorizontal: 5,
   },
-  cancel: {
-    backgroundColor: "#ccc",
+  cancelButton: {
+    backgroundColor: '#E5E7EB',
   },
-  submit: {
-    backgroundColor: "#007AFF",
+  submitButton: {
+    backgroundColor: '#10B981',
   },
   buttonText: {
-    color: "#fff",
-    fontWeight: "600",
+    color: '#111',
+    fontWeight: '600',
+    textAlign: 'center',
+    fontSize: 16,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#555',
+    textAlign: 'center',
+    marginTop: 32,
   },
 });
