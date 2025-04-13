@@ -13,7 +13,8 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { v4 as uuid } from 'uuid';
+import uuid from 'react-native-uuid';
+
 
 type Provider = {
   id: string;
@@ -55,7 +56,7 @@ export default function ProvidersScreen() {
         prev.map(p => (p.id === selectedProvider.id ? { ...p, ...form } : p))
       );
     } else {
-      setProviders(prev => [...prev, { id: uuid(), ...form }]);
+      setProviders(prev => [...prev, { id: { id: uuid.v4().toString(), ...form }]);
     }
 
     setForm(emptyForm);
