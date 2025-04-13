@@ -1,18 +1,15 @@
-// app/(tabs)/providers.tsx
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   Modal,
   StyleSheet,
-  Platform,
   ScrollView,
-  KeyboardAvoidingView,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,292 +26,276 @@ interface Provider {
   notes: string;
 }
 
-const ProvidersScreen = () => {
+export default function ProvidersScreen() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
-  const [activeProvider, setActiveProvider] = useState<Provider | null>(null);
+  const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const handleOpenProvider = (provider: Provider) => {
-    setActiveProvider(provider);
+  const [formState, setFormState] = useState<Omit<Provider, 'id'>>({
+    name: '',
+    specialty: '',
+    address: '',
+    phone: '',
+    email: '',
+    fax: '',
+    notes: '',
+  });
+
+  const handleInputChange = (field: keyof Omit<Provider, 'id'>, value: string) => {
+    setFormState({ ...formState, [field]: value });
+  };
+
+  const handleAddOrUpdateProvider = () => {
+    if (!formState.name) return;
+
+    if (editingProvider) {
+      setProviders(prev =>
+        prev.map(p => (p.id === editingProvider.id ? { ...editingProvider, ...formState } : p))
+      );
+    } else {
+      setProviders(prev => [...prev, { id: uuidv4(), ...formState }]);
+    }
+
+    setFormState({
+      name: '',
+      specialty: '',
+      address: '',
+      phone: '',
+      email: '',
+      fax: '',
+      notes: '',
+    });
+    setEditingProvider(null);
+    setModalVisible(false);
+  };
+
+  const handleEdit = (provider: Provider) => {
+    setEditingProvider(provider);
+    setFormState({ ...provider });
     setModalVisible(true);
   };
 
-  const handleDeleteProvider = (id: string) => {
-    Alert.alert('Delete Provider', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          setProviders(prev => prev.filter(p => p.id !== id));
-          setModalVisible(false);
-        },
-      },
-    ]);
+  const handleDelete = (id: string) => {
+    setProviders(prev => prev.filter(p => p.id !== id));
   };
 
-  const handleSaveProvider = () => {
-    if (activeProvider) {
-      setProviders(prev => {
-        const exists = prev.find(p => p.id === activeProvider.id);
-        if (exists) {
-          return prev.map(p => (p.id === activeProvider.id ? activeProvider : p));
-        } else {
-          return [...prev, { ...activeProvider, id: uuidv4() }];
-        }
-      });
-      setModalVisible(false);
-    }
-  };
-
-  const renderProviderCard = ({ item }: { item: Provider }) => (
-    <TouchableOpacity
-      onPress={() => handleOpenProvider(item)}
-      accessibilityLabel={`Open details for ${item.name}`}
-      style={styles.card}
-    >
-      <Text style={styles.cardTitle}>{item.name}</Text>
-      <Text style={styles.cardSubtitle}>{item.specialty}</Text>
-    </TouchableOpacity>
-  );
-
-  const renderInput = (
-    label: string,
-    field: keyof Omit<Provider, 'id'>,
-    placeholderIcon: keyof typeof Ionicons.glyphMap,
-  ) => (
-    <View style={styles.inputGroup}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.inputWrapper}>
-        <Ionicons name={placeholderIcon} size={20} color="#666" style={styles.icon} />
-        <TextInput
-          style={styles.input}
-          placeholder={label}
-          placeholderTextColor="#888"
-          value={activeProvider?.[field] || ''}
-          onChangeText={text => setActiveProvider(prev => prev ? { ...prev, [field]: text } : prev)}
-          accessibilityLabel={label}
-        />
-      </View>
-    </View>
+  const filteredProviders = providers.filter(p =>
+    p.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.header}>Providers & Facilities</Text>
-
-      <FlatList
-        data={providers}
-        keyExtractor={item => item.id}
-        renderItem={renderProviderCard}
-        contentContainerStyle={styles.list}
-        accessibilityRole="list"
-      />
-
-      <TouchableOpacity
-        style={styles.addButton}
-        onPress={() => {
-          setActiveProvider({
-            id: '',
-            name: '',
-            specialty: '',
-            address: '',
-            phone: '',
-            email: '',
-            fax: '',
-            notes: '',
-          });
-          setModalVisible(true);
-        }}
-        accessibilityRole="button"
-        accessibilityLabel="Add a provider or facility"
+    <SafeAreaView style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <Ionicons name="add-circle-outline" size={24} color="#fff" />
-        <Text style={styles.addButtonText}>Add Provider</Text>
-      </TouchableOpacity>
+        <View style={styles.container}>
+          <Text style={styles.title}>Your Providers</Text>
 
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.modalContainer}
+          <TextInput
+            style={styles.searchInput}
+            placeholder="🔍 Search providers"
+            placeholderTextColor="#888"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            accessibilityLabel="Search providers"
+          />
+
+          <FlatList
+            data={filteredProviders}
+            keyExtractor={item => item.id}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.card}
+                onPress={() => handleEdit(item)}
+                accessibilityLabel={`Tap to view or edit details for ${item.name}`}
+              >
+                <Text style={styles.cardTitle}>{item.name}</Text>
+                <Text style={styles.cardSub}>{item.specialty}</Text>
+                <TouchableOpacity
+                  onPress={() => handleDelete(item.id)}
+                  accessibilityLabel={`Delete provider ${item.name}`}
+                >
+                  <Ionicons name="trash" size={20} color="red" />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={<Text style={styles.empty}>No providers added yet.</Text>}
+          />
+
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => {
+              setEditingProvider(null);
+              setFormState({
+                name: '',
+                specialty: '',
+                address: '',
+                phone: '',
+                email: '',
+                fax: '',
+                notes: '',
+              });
+              setModalVisible(true);
+            }}
+            accessibilityLabel="Add a new provider or facility"
           >
-            <ScrollView contentContainerStyle={styles.form}>
+            <Ionicons name="add-circle-outline" size={24} color="#fff" />
+            <Text style={styles.addButtonText}>Add Provider</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Modal animationType="slide" transparent={true} visible={modalVisible}>
+          <View style={styles.modalContainer}>
+            <ScrollView contentContainerStyle={styles.modalContent}>
               <Text style={styles.modalTitle}>
-                {activeProvider?.id ? 'Edit Provider' : 'Add New Provider'}
+                {editingProvider ? 'Edit Provider' : 'Add New Provider'}
               </Text>
 
-              {renderInput('Name or Facility', 'name', 'business')}
-              {renderInput('Specialty', 'specialty', 'medkit')}
-              {renderInput('Address', 'address', 'location')}
-              {renderInput('Phone Number', 'phone', 'call')}
-              {renderInput('Email', 'email', 'mail')}
-              {renderInput('Fax Number', 'fax', 'print')}
-              {renderInput('Notes (visit dates, etc.)', 'notes', 'document-text')}
+              {(
+                Object.keys(formState) as Array<keyof Omit<Provider, 'id'>>
+              ).map((field, index) => (
+                <View key={index} style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>
+                    {field.charAt(0).toUpperCase() + field.slice(1)}
+                  </Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder={`${
+                      field === 'name'
+                        ? '🏥 Name or Facility'
+                        : field === 'address'
+                        ? '🏠 Address'
+                        : field === 'phone'
+                        ? '📞 Phone'
+                        : field === 'email'
+                        ? '✉️ Email'
+                        : field === 'fax'
+                        ? '📠 Fax'
+                        : '📝 Notes'
+                    }`}
+                    placeholderTextColor="#888"
+                    value={formState[field]}
+                    onChangeText={value => handleInputChange(field, value)}
+                    accessibilityLabel={`Enter ${field}`}
+                  />
+                </View>
+              ))}
 
               <View style={styles.buttonRow}>
                 <TouchableOpacity
-                  style={[styles.modalButton, styles.cancelButton]}
+                  style={styles.cancelButton}
                   onPress={() => setModalVisible(false)}
                   accessibilityLabel="Cancel"
                 >
                   <Text style={styles.buttonText}>Cancel</Text>
                 </TouchableOpacity>
-
                 <TouchableOpacity
-                  style={[styles.modalButton, styles.saveButton]}
-                  onPress={handleSaveProvider}
-                  accessibilityLabel="Submit provider info"
+                  style={styles.submitButton}
+                  onPress={handleAddOrUpdateProvider}
+                  accessibilityLabel="Submit provider details"
                 >
                   <Text style={styles.buttonText}>Submit</Text>
                 </TouchableOpacity>
               </View>
-
-              {activeProvider?.id && (
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={() => handleDeleteProvider(activeProvider.id)}
-                  accessibilityLabel="Delete provider"
-                >
-                  <Ionicons name="trash" size={20} color="#fff" />
-                  <Text style={styles.buttonText}>Delete</Text>
-                </TouchableOpacity>
-              )}
             </ScrollView>
-          </KeyboardAvoidingView>
-        </View>
-      </Modal>
+          </View>
+        </Modal>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
-};
-
-export default ProvidersScreen;
+}
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#eef2f5',
-  },
-  header: {
-    fontSize: 24,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginVertical: 16,
-  },
-  list: {
-    paddingHorizontal: 16,
+  container: { flex: 1, paddingHorizontal: 20, paddingTop: 10 },
+  title: { fontSize: 24, fontWeight: '700', marginBottom: 15 },
+  searchInput: {
+    backgroundColor: '#f0f0f0',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    fontSize: 16,
   },
   card: {
     backgroundColor: '#fff',
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
-    elevation: 3,
+    elevation: 2,
+    shadowColor: '#aaa',
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
   },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  cardSubtitle: {
-    fontSize: 14,
-    color: '#666',
-  },
+  cardTitle: { fontSize: 18, fontWeight: '600' },
+  cardSub: { fontSize: 14, color: '#555', marginTop: 4 },
+  empty: { textAlign: 'center', color: '#888', marginTop: 20 },
   addButton: {
-    flexDirection: 'row',
     backgroundColor: '#007AFF',
-    padding: 14,
-    margin: 20,
-    borderRadius: 12,
-    alignItems: 'center',
+    flexDirection: 'row',
     justifyContent: 'center',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 8,
+    marginVertical: 15,
   },
   addButtonText: {
     color: '#fff',
     fontSize: 18,
     marginLeft: 10,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: '#0006',
-    justifyContent: 'center',
+    fontWeight: '500',
   },
   modalContainer: {
-    margin: 20,
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  modalContent: {
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
+    padding: 20,
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    marginBottom: 16,
+    marginBottom: 10,
     textAlign: 'center',
   },
-  form: {
-    paddingBottom: 32,
-  },
-  inputGroup: {
-    marginBottom: 14,
-  },
-  label: {
-    fontSize: 14,
-    marginBottom: 6,
-    color: '#333',
-    fontWeight: '500',
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    backgroundColor: '#f8f9fb',
-  },
-  icon: {
-    marginRight: 6,
+  inputGroup: { marginBottom: 12 },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
   },
   input: {
-    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    padding: 12,
     fontSize: 16,
-    color: '#000',
-    paddingVertical: 10,
   },
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 12,
-  },
-  modalButton: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 10,
-    marginHorizontal: 6,
-    alignItems: 'center',
+    marginTop: 18,
   },
   cancelButton: {
     backgroundColor: '#aaa',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
   },
-  saveButton: {
-    backgroundColor: '#007AFF',
+  submitButton: {
+    backgroundColor: '#28a745',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
   },
   buttonText: {
+    fontSize: 16,
     color: '#fff',
     fontWeight: '600',
-    fontSize: 16,
-  },
-  deleteButton: {
-    marginTop: 16,
-    backgroundColor: '#FF3B30',
-    borderRadius: 10,
-    padding: 12,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });
