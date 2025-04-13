@@ -1,18 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TextInput,
+  TouchableOpacity,
   ScrollView,
-  Pressable,
-  Modal,
   StyleSheet,
-  KeyboardAvoidingView,
+  Alert,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import uuid from 'react-native-uuid';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 type Provider = {
   id: string;
@@ -27,8 +27,8 @@ type Provider = {
 
 export default function ProvidersScreen() {
   const [providers, setProviders] = useState<Provider[]>([]);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [form, setForm] = useState<Omit<Provider, 'id'>>({
+  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
+  const [newProvider, setNewProvider] = useState<Omit<Provider, 'id'>>({
     name: '',
     specialty: '',
     address: '',
@@ -37,16 +37,12 @@ export default function ProvidersScreen() {
     fax: '',
     notes: '',
   });
-  const insets = useSafeAreaInsets();
 
-  const handleSubmit = () => {
-    const newProvider: Provider = {
-      id: uuid.v4().toString(),
-      ...form,
-    };
-    setProviders(prev => [...prev, newProvider]);
-    setModalVisible(false);
-    setForm({
+  const handleAddProvider = () => {
+    const id = uuid.v4().toString();
+    const provider: Provider = { id, ...newProvider };
+    setProviders(prev => [...prev, provider]);
+    setNewProvider({
       name: '',
       specialty: '',
       address: '',
@@ -57,187 +53,186 @@ export default function ProvidersScreen() {
     });
   };
 
-  const handleDelete = (id: string) => {
+  const handleDeleteProvider = (id: string) => {
     setProviders(prev => prev.filter(p => p.id !== id));
+    setSelectedProviderId(null);
   };
 
+  const handleUpdateProvider = (updated: Provider) => {
+    setProviders(prev => prev.map(p => (p.id === updated.id ? updated : p)));
+  };
+
+  const handleInputChange = (field: keyof Omit<Provider, 'id'>, value: string) => {
+    setNewProvider(prev => ({ ...prev, [field]: value }));
+  };
+
+  const selectedProvider = providers.find(p => p.id === selectedProviderId);
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Text style={styles.headerText}>Providers</Text>
-        <Pressable
-          onPress={() => setModalVisible(true)}
-          style={styles.addButton}>
-          <Ionicons name="add-circle" size={28} color="#2e86de" />
-          <Text style={styles.addButtonText}>Add Provider / Facility</Text>
-        </Pressable>
-      </View>
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={100}
+      >
+        <Text style={styles.title}>Add New Provider or Facility</Text>
+        <ScrollView style={styles.form} contentContainerStyle={{ paddingBottom: 80 }}>
+          {Object.keys(newProvider).map(field => (
+            <TextInput
+              key={field}
+              placeholder={`Enter ${field}`}
+              placeholderTextColor="#999"
+              style={styles.input}
+              value={newProvider[field as keyof typeof newProvider]}
+              onChangeText={val =>
+                handleInputChange(field as keyof Omit<Provider, 'id'>, val)
+              }
+            />
+          ))}
 
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        {providers.map(provider => (
-          <Pressable key={provider.id} style={styles.card}>
-            <Text style={styles.cardTitle}>{provider.name}</Text>
-            <Text style={styles.cardSubtitle}>{provider.specialty}</Text>
-            <Text style={styles.cardInfo}>{provider.address}</Text>
-            <Text style={styles.cardInfo}>{provider.phone}</Text>
-            <Text style={styles.cardInfo}>{provider.email}</Text>
-            <Text style={styles.cardInfo}>{provider.fax}</Text>
-            <Text style={styles.cardInfo}>{provider.notes}</Text>
-            <Pressable
-              onPress={() => handleDelete(provider.id)}
-              style={styles.deleteButton}>
-              <Ionicons name="trash" size={18} color="white" />
-              <Text style={styles.deleteButtonText}>Delete</Text>
-            </Pressable>
-          </Pressable>
-        ))}
-      </ScrollView>
+          <TouchableOpacity style={styles.addButton} onPress={handleAddProvider}>
+            <Text style={styles.addButtonText}>➕ Add Provider or Facility</Text>
+          </TouchableOpacity>
 
-      <Modal visible={modalVisible} animationType="slide">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.modalContainer}>
-          <ScrollView contentContainerStyle={styles.modalContent}>
-            <Text style={styles.modalTitle}>Add a New Provider</Text>
-            {Object.entries(form).map(([key, value]) => (
-              <View key={key} style={styles.inputGroup}>
-                <Text style={styles.label}>{key.charAt(0).toUpperCase() + key.slice(1)}</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder={`Enter ${key}`}
-                  placeholderTextColor="#aaa"
-                  value={value}
-                  onChangeText={text =>
-                    setForm(prev => ({ ...prev, [key as keyof typeof form]: text }))
-                  }
-                />
-              </View>
-            ))}
-
-            <View style={styles.buttonRow}>
-              <Pressable onPress={() => setModalVisible(false)} style={styles.cancelButton}>
-                <Text style={styles.buttonText}>Cancel</Text>
-              </Pressable>
-              <Pressable onPress={handleSubmit} style={styles.submitButton}>
-                <Text style={styles.buttonText}>Submit</Text>
-              </Pressable>
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </Modal>
-    </KeyboardAvoidingView>
+          <Text style={styles.title}>Your Providers</Text>
+          {providers.length === 0 && (
+            <Text style={styles.noProviders}>No providers added yet.</Text>
+          )}
+          {providers.map(provider => (
+            <TouchableOpacity
+              key={provider.id}
+              onPress={() =>
+                setSelectedProviderId(
+                  selectedProviderId === provider.id ? null : provider.id
+                )
+              }
+              style={[
+                styles.card,
+                selectedProviderId === provider.id && styles.selectedCard,
+              ]}
+            >
+              <Text style={styles.cardTitle}>{provider.name}</Text>
+              <Text style={styles.cardSubtitle}>{provider.specialty}</Text>
+              {selectedProviderId === provider.id && (
+                <>
+                  {Object.entries(provider).map(([key, val]) =>
+                    key !== 'id' ? (
+                      <Text key={key} style={styles.cardDetail}>
+                        {key}: {val}
+                      </Text>
+                    ) : null
+                  )}
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() =>
+                      Alert.alert(
+                        'Delete Provider',
+                        'Are you sure you want to delete this provider?',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          { text: 'Delete', onPress: () => handleDeleteProvider(provider.id) },
+                        ]
+                      )
+                    }
+                  >
+                    <Text style={styles.deleteButtonText}>🗑️ Delete</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  header: {
-    paddingHorizontal: 20,
-    paddingBottom: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f2f2f2',
   },
-  headerText: { fontSize: 24, fontWeight: 'bold', color: '#222' },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  addButtonText: {
-    marginLeft: 6,
-    fontSize: 16,
-    color: '#2e86de',
-  },
-  scrollContainer: {
+  container: {
+    flex: 1,
     paddingHorizontal: 16,
-    paddingBottom: 24,
   },
-  card: {
-    backgroundColor: '#f5f6fa',
-    padding: 16,
-    borderRadius: 12,
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    paddingVertical: 12,
+    textAlign: 'center',
+    color: '#1e1e1e',
+  },
+  form: {
     marginBottom: 12,
   },
-  cardTitle: {
+  input: {
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    padding: 16,
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1e272e',
+    marginBottom: 12,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    color: '#333',
+  },
+  addButton: {
+    backgroundColor: '#0077cc',
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  addButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  noProviders: {
+    fontSize: 16,
+    textAlign: 'center',
+    color: '#888',
+    padding: 12,
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  selectedCard: {
+    backgroundColor: '#e0f7ff',
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 4,
+    color: '#333',
   },
   cardSubtitle: {
     fontSize: 16,
-    color: '#485460',
+    fontWeight: '500',
     marginBottom: 8,
+    color: '#666',
   },
-  cardInfo: {
-    fontSize: 14,
-    color: '#636e72',
+  cardDetail: {
+    fontSize: 16,
+    color: '#444',
+    marginVertical: 2,
   },
   deleteButton: {
-    flexDirection: 'row',
-    marginTop: 10,
-    backgroundColor: '#eb3b5a',
-    padding: 8,
-    borderRadius: 6,
-    justifyContent: 'center',
+    backgroundColor: '#ff4444',
+    padding: 10,
+    borderRadius: 8,
     alignItems: 'center',
+    marginTop: 12,
   },
   deleteButtonText: {
     color: '#fff',
-    marginLeft: 6,
-    fontSize: 14,
-  },
-  modalContainer: { flex: 1, backgroundColor: '#fff' },
-  modalContent: {
-    padding: 20,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
-    color: '#2c3e50',
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 16,
-    marginBottom: 4,
-    color: '#2c3e50',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#2c3e50',
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 24,
-  },
-  cancelButton: {
-    flex: 1,
-    marginRight: 8,
-    backgroundColor: '#d1d8e0',
-    padding: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  submitButton: {
-    flex: 1,
-    marginLeft: 8,
-    backgroundColor: '#20bf6b',
-    padding: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#fff',
+    fontWeight: '600',
     fontSize: 16,
   },
 });
