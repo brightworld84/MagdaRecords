@@ -1,9 +1,7 @@
-import 'react-native-get-random-values';
-
-import React, { useState } from 'react';
-import { View, TextInput, Text, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Modal, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, ScrollView, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { v4 as uuidv4 } from 'uuid';
+import * as Haptics from 'expo-haptics';
 
 type Provider = {
   id: string;
@@ -16,232 +14,222 @@ type Provider = {
   notes: string;
 };
 
+const initialFormState: Omit<Provider, 'id'> = {
+  name: '',
+  specialty: '',
+  address: '',
+  phone: '',
+  email: '',
+  fax: '',
+  notes: '',
+};
+
 export default function ProvidersScreen() {
   const [providers, setProviders] = useState<Provider[]>([]);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
+  const [formData, setFormData] = useState(initialFormState);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const [formData, setFormData] = useState<Omit<Provider, 'id'>>({
-    name: '',
-    specialty: '',
-    address: '',
-    phone: '',
-    email: '',
-    fax: '',
-    notes: '',
-  });
-
-  const handleSaveProvider = () => {
-    if (selectedProvider) {
-      // Update existing
-      setProviders((prev) =>
-        prev.map((p) => (p.id === selectedProvider.id ? { ...selectedProvider, ...formData } : p))
-      );
-    } else {
-      // Create new
-      setProviders((prev) => [...prev, { id: uuidv4(), ...formData }]);
-    }
-    setModalVisible(false);
-    setFormData({ name: '', specialty: '', address: '', phone: '', email: '', fax: '', notes: '' });
-    setSelectedProvider(null);
-  };
-
-  const handleEditProvider = (provider: Provider) => {
-    setSelectedProvider(provider);
-    setFormData({ ...provider });
-    setModalVisible(true);
-  };
-
-  const handleRemoveProvider = (id: string) => {
-    setProviders((prev) => prev.filter((p) => p.id !== id));
-  };
-
-  const handleSimulateAIImport = () => {
-    const extracted: Provider = {
-      id: uuidv4(),
-      name: 'Dr. Jane Doe',
-      specialty: 'Cardiology',
-      address: '123 Heart Ave, Pulse City',
-      phone: '(123) 456-7890',
-      email: 'janedoe@hospital.org',
-      fax: '(123) 555-0123',
-      notes: 'Visited on 2023-12-01 for chest pain.',
-    };
-
-    // Check for existing match
-    const existing = providers.find((p) => p.name === extracted.name);
-    if (existing) {
-      setSelectedProvider(existing);
-      setFormData({ ...existing, ...extracted });
-    } else {
-      setFormData({ ...extracted });
-    }
-
-    setModalVisible(true);
-  };
-
-  const filteredProviders = providers.filter(
-    (p) =>
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.specialty.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredProviders = providers.filter(p =>
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.specialty.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleInputChange = (field: keyof typeof formData, value: string) => {
+    setFormData({ ...formData, [field]: value });
+  };
+
+  const handleSubmit = () => {
+    if (!formData.name.trim()) {
+      Alert.alert('Provider name is required');
+      return;
+    }
+
+    if (selectedProviderId) {
+      setProviders(prev =>
+        prev.map(p =>
+          p.id === selectedProviderId ? { ...p, ...formData } : p
+        )
+      );
+    } else {
+      const newProvider: Provider = {
+        id: Date.now().toString(), // fallback unique ID
+        ...formData,
+      };
+      setProviders(prev => [...prev, newProvider]);
+    }
+
+    setFormData(initialFormState);
+    setSelectedProviderId(null);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
+  const handleEdit = (provider: Provider) => {
+    setFormData({ ...provider });
+    setSelectedProviderId(provider.id);
+  };
+
+  const handleDelete = (id: string) => {
+    Alert.alert('Confirm Delete', 'Are you sure you want to delete this provider?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => setProviders(prev => prev.filter(p => p.id !== id)),
+      },
+    ]);
+  };
+
+  const simulateAIDetection = () => {
+    const simulatedProvider: Omit<Provider, 'id'> = {
+      name: 'Dr. Jane Doe',
+      specialty: 'Cardiology',
+      address: '123 Heart St, Pulse City',
+      phone: '555-123-4567',
+      email: 'jane.doe@healthcare.com',
+      fax: '555-123-9876',
+      notes: 'Initial visit: Jan 2024',
+    };
+
+    Alert.alert('AI Provider Detected', 'Would you like to add or update this provider?', [
+      {
+        text: 'Add New',
+        onPress: () => setProviders(prev => [...prev, { id: Date.now().toString(), ...simulatedProvider }]),
+      },
+      {
+        text: 'Update Existing',
+        onPress: () => {
+          const match = providers.find(p => p.name === simulatedProvider.name);
+          if (match) {
+            handleEdit({ ...match, ...simulatedProvider });
+          } else {
+            Alert.alert('No matching provider found');
+          }
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
-      <Text style={styles.header}>Your Providers</Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: '#f5f5f5' }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView contentContainerStyle={{ padding: 20 }}>
+        <Text style={{ fontSize: 26, fontWeight: 'bold', marginBottom: 12 }}>Your Providers</Text>
 
-      <View style={styles.searchBar}>
-        <Ionicons name="search" size={20} color="#666" style={{ marginRight: 8 }} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search by name or specialty"
-          placeholderTextColor="#999"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          accessible accessibilityLabel="Search providers"
-        />
-      </View>
+        <View style={{ marginBottom: 16 }}>
+          <TextInput
+            placeholder="🔍 Search providers..."
+            placeholderTextColor="#888"
+            value={searchTerm}
+            onChangeText={setSearchTerm}
+            style={{
+              backgroundColor: '#fff',
+              padding: 12,
+              borderRadius: 8,
+              fontSize: 18,
+              marginBottom: 8,
+              borderWidth: 1,
+              borderColor: '#ddd',
+            }}
+            accessible
+            accessibilityLabel="Search providers"
+          />
+        </View>
 
-      <FlatList
-        data={filteredProviders}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 120 }}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            onPress={() => handleEditProvider(item)}
-            style={styles.providerCard}
-            accessibilityLabel={`Provider: ${item.name}, Specialty: ${item.specialty}`}
-          >
-            <Text style={styles.providerName}>{item.name}</Text>
-            <Text style={styles.providerSpecialty}>{item.specialty}</Text>
-          </TouchableOpacity>
-        )}
-      />
+        <TouchableOpacity
+          onPress={simulateAIDetection}
+          style={{
+            backgroundColor: '#007AFF',
+            padding: 14,
+            borderRadius: 10,
+            alignItems: 'center',
+            marginBottom: 20,
+          }}
+          accessible
+          accessibilityLabel="Use AI to detect provider"
+        >
+          <Text style={{ color: 'white', fontSize: 18 }}>🧠 Use AI to Detect Provider</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        onPress={() => {
-          setSelectedProvider(null);
-          setFormData({ name: '', specialty: '', address: '', phone: '', email: '', fax: '', notes: '' });
-          setModalVisible(true);
-        }}
-        style={styles.addButton}
-        accessibilityLabel="Add a new provider or facility"
-      >
-        <Ionicons name="add-circle" size={24} color="white" />
-        <Text style={styles.addButtonText}>Add Provider or Facility</Text>
-      </TouchableOpacity>
+        <View style={{ marginBottom: 28 }}>
+          <Text style={{ fontSize: 20, fontWeight: '600', marginBottom: 8 }}>Add or Edit Provider</Text>
 
-      <TouchableOpacity
-        onPress={handleSimulateAIImport}
-        style={[styles.addButton, { marginTop: 10, backgroundColor: '#5b8df9' }]}
-        accessibilityLabel="Simulate AI-imported provider"
-      >
-        <Ionicons name="sparkles-outline" size={20} color="white" />
-        <Text style={styles.addButtonText}>AI Import Provider</Text>
-      </TouchableOpacity>
-
-      <Modal visible={modalVisible} animationType="slide">
-        <KeyboardAvoidingView behavior="padding" style={styles.modalContainer}>
-          <Text style={styles.modalHeader}>
-            {selectedProvider ? 'Update Provider' : 'Add Provider'}
-          </Text>
-          {(['name', 'specialty', 'address', 'phone', 'email', 'fax', 'notes'] as const).map((key) => (
-            <View key={key} style={{ marginBottom: 12 }}>
-              <Text style={styles.inputLabel}>
+          {Object.entries(formData).map(([key, value]) => (
+            <View key={key} style={{ marginBottom: 14 }}>
+              <Text style={{ fontSize: 16, fontWeight: '500', marginBottom: 4 }}>
                 {key.charAt(0).toUpperCase() + key.slice(1)}
               </Text>
               <TextInput
-                style={styles.input}
-                value={formData[key]}
-                onChangeText={(text) => setFormData((prev) => ({ ...prev, [key]: text }))}
-                placeholder={`Enter ${key} here`}
+                placeholder={`Enter ${key}...`}
                 placeholderTextColor="#888"
+                value={value}
+                onChangeText={text => handleInputChange(key as keyof typeof formData, text)}
+                style={{
+                  backgroundColor: '#fff',
+                  padding: 12,
+                  borderRadius: 8,
+                  fontSize: 18,
+                  borderWidth: 1,
+                  borderColor: '#ccc',
+                }}
                 accessible
                 accessibilityLabel={`${key} input`}
               />
             </View>
           ))}
-          <View style={styles.modalButtons}>
-            <TouchableOpacity style={styles.cancelButton} onPress={() => setModalVisible(false)}>
-              <Text style={styles.modalButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.submitButton} onPress={handleSaveProvider}>
-              <Text style={styles.modalButtonText}>Submit</Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+
+          <TouchableOpacity
+            onPress={handleSubmit}
+            style={{
+              backgroundColor: '#34C759',
+              padding: 16,
+              borderRadius: 12,
+              alignItems: 'center',
+              marginTop: 10,
+            }}
+            accessible
+            accessibilityLabel="Submit provider"
+          >
+            <Text style={{ color: 'white', fontSize: 18 }}>
+              {selectedProviderId ? 'Update Provider' : 'Add Provider'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ marginTop: 12 }}>
+          {filteredProviders.map(provider => (
+            <View
+              key={provider.id}
+              style={{
+                backgroundColor: '#fff',
+                borderRadius: 10,
+                padding: 14,
+                marginBottom: 12,
+                borderWidth: 1,
+                borderColor: '#ddd',
+              }}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={`Provider: ${provider.name}`}
+            >
+              <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 4 }}>{provider.name}</Text>
+              <Text style={{ fontSize: 16, color: '#555', marginBottom: 8 }}>{provider.specialty}</Text>
+
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <TouchableOpacity onPress={() => handleEdit(provider)} accessibilityLabel="Edit provider">
+                  <Ionicons name="create-outline" size={24} color="#007AFF" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleDelete(provider.id)} accessibilityLabel="Delete provider">
+                  <Ionicons name="trash-outline" size={24} color="#FF3B30" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f7fa', padding: 16 },
-  header: { fontSize: 24, fontWeight: 'bold', marginBottom: 12, color: '#333' },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#eee',
-    padding: 10,
-    borderRadius: 10,
-    marginBottom: 12,
-  },
-  searchInput: { flex: 1, fontSize: 16 },
-  providerCard: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 10,
-    marginBottom: 10,
-    elevation: 2,
-  },
-  providerName: { fontSize: 18, fontWeight: '600', color: '#222' },
-  providerSpecialty: { fontSize: 14, color: '#555' },
-  addButton: {
-    position: 'absolute',
-    bottom: 80,
-    left: 20,
-    right: 20,
-    backgroundColor: '#28a745',
-    paddingVertical: 14,
-    borderRadius: 10,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addButtonText: { fontSize: 16, color: '#fff', marginLeft: 8, fontWeight: '600' },
-  modalContainer: { flex: 1, padding: 20, backgroundColor: '#fff' },
-  modalHeader: { fontSize: 20, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
-  inputLabel: { fontSize: 16, marginBottom: 4, color: '#333' },
-  input: {
-    backgroundColor: '#f1f1f1',
-    padding: 12,
-    borderRadius: 8,
-    fontSize: 16,
-    color: '#111',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 30,
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: '#ccc',
-    padding: 14,
-    borderRadius: 10,
-    marginRight: 10,
-  },
-  submitButton: {
-    flex: 1,
-    backgroundColor: '#007bff',
-    padding: 14,
-    borderRadius: 10,
-  },
-  modalButtonText: {
-    textAlign: 'center',
-    fontWeight: 'bold',
-    color: '#fff',
-    fontSize: 16,
-  },
-});
