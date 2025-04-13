@@ -8,13 +8,28 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 type Message = {
   id: string;
   role: 'user' | 'assistant';
   content: string;
 };
+
+const suggestedPrompts = [
+  'Summarize my last visit',
+  'What medications am I on?',
+  'Check for drug interactions',
+  'Remind me of my appointments',
+  'Give me a health overview',
+];
+
+// ⚠️ TEMPORARY: Replace this with your actual OpenAI API key
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'sk-...tWYA';
 
 export default function AIAssistantScreen() {
   const [messages, setMessages] = useState<Message[]>([
@@ -25,24 +40,64 @@ export default function AIAssistantScreen() {
     },
   ]);
   const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const sendMessage = () => {
-    if (!input.trim()) return;
+  const sendMessage = async (text: string) => {
+    if (!text.trim()) return;
 
     const newUserMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: input.trim(),
+      content: text.trim(),
     };
 
-    const newAssistantMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      role: 'assistant',
-      content: "I'm here to help! (AI response placeholder)",
-    };
-
-    setMessages((prev) => [...prev, newUserMessage, newAssistantMessage]);
+    setMessages((prev) => [...prev, newUserMessage]);
     setInput('');
+    setLoading(true);
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-3.5-turbo',
+          messages: [
+            { role: 'system', content: 'You are a helpful AI medical assistant.' },
+            { role: 'user', content: text.trim() },
+          ],
+          max_tokens: 500,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.choices && data.choices.length > 0) {
+        const newAssistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: data.choices[0].message.content.trim(),
+        };
+        setMessages((prev) => [...prev, newAssistantMessage]);
+      } else {
+        throw new Error('No response from AI');
+      }
+    } catch (error: any) {
+      const errorMessage: Message = {
+        id: (Date.now() + 2).toString(),
+        role: 'assistant',
+        content: `Sorry, I couldn't reach OpenAI: ${error.message}`,
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVoiceInput = () => {
+    Alert.alert('Voice input not yet implemented', 'Microphone input will be added soon.');
   };
 
   return (
@@ -67,14 +122,29 @@ export default function AIAssistantScreen() {
         contentContainerStyle={{ paddingBottom: 20 }}
       />
 
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.promptBar}>
+        {suggestedPrompts.map((prompt, index) => (
+          <TouchableOpacity
+            key={index}
+            style={styles.promptButton}
+            onPress={() => sendMessage(prompt)}
+          >
+            <Text style={styles.promptText}>{prompt}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
       <View style={styles.inputRow}>
+        <TouchableOpacity onPress={handleVoiceInput}>
+          <Ionicons name="mic" size={28} color="#555" style={styles.micIcon} />
+        </TouchableOpacity>
         <TextInput
           style={styles.input}
           placeholder="Ask a question..."
           value={input}
           onChangeText={setInput}
         />
-        <Button title="Send" onPress={sendMessage} />
+        <Button title={loading ? '...' : 'Send'} onPress={() => sendMessage(input)} disabled={loading} />
       </View>
     </KeyboardAvoidingView>
   );
@@ -111,5 +181,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 16,
+  },
+  micIcon: {
+    marginRight: 8,
+  },
+  promptBar: {
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  promptButton: {
+    backgroundColor: '#F0F0F0',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    marginRight: 10,
+  },
+  promptText: {
+    fontSize: 14,
+    color: '#333',
   },
 });
