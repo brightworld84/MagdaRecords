@@ -1,206 +1,168 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   FlatList,
-  Modal,
-  StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Modal,
   ScrollView
-} from 'react-native';
+} from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 
 interface Provider {
   id: string;
   name: string;
   specialty: string;
-  address: string;
-  phone: string;
-  email: string;
-  fax: string;
-  notes: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  fax?: string;
+  notes?: string;
 }
 
-export default function ProvidersScreen() {
-  const [providers, setProviders] = useState<Provider[]>([]);
-  const [modalVisible, setModalVisible] = useState(false);
+const Providers = () => {
+  const [search, setSearch] = useState("");
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
-  const openProvider = (provider: Provider) => {
+  const [providers, setProviders] = useState<Provider[]>([
+    {
+      id: "1",
+      name: "Dr. Emily Smith",
+      specialty: "Cardiology",
+      address: "",
+      phone: "",
+      email: "",
+      fax: "",
+      notes: "",
+    },
+    {
+      id: "2",
+      name: "Central Clinic",
+      specialty: "General Medicine",
+      address: "",
+      phone: "",
+      email: "",
+      fax: "",
+      notes: "",
+    },
+  ]);
+
+  const filteredProviders = providers.filter(p =>
+    p.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleSelectProvider = (provider: Provider) => {
     setSelectedProvider(provider);
     setModalVisible(true);
   };
 
-  const closeProvider = () => {
-    setSelectedProvider(null);
+  const handleInputChange = (field: keyof Provider, value: string) => {
+    if (selectedProvider) {
+      setSelectedProvider({ ...selectedProvider, [field]: value });
+    }
+  };
+
+  const handleCloseModal = () => {
+    if (selectedProvider) {
+      const updatedList = providers.map(p =>
+        p.id === selectedProvider.id ? selectedProvider : p
+      );
+      setProviders(updatedList);
+    }
     setModalVisible(false);
   };
 
-  const renderProvider = ({ item }: { item: Provider }) => (
-    <TouchableOpacity onPress={() => openProvider(item)} style={styles.item}>
-      <Text style={styles.title}>{item.name}</Text>
-      <Text style={styles.subtitle}>{item.specialty}</Text>
-    </TouchableOpacity>
-  );
-
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={{ flex: 1, backgroundColor: "#000" }}
     >
-      <View style={styles.container}>
-        <FlatList
-          data={providers}
-          renderItem={renderProvider}
-          keyExtractor={(item) => item.id}
-          ListEmptyComponent={<Text style={styles.empty}>No providers yet</Text>}
+      <View style={{ padding: 16 }}>
+        <TextInput
+          placeholder="Search providers"
+          placeholderTextColor="#ccc"
+          value={search}
+          onChangeText={setSearch}
+          style={{
+            backgroundColor: "#1c1c1e",
+            color: "#fff",
+            padding: 12,
+            borderRadius: 8,
+            marginBottom: 12,
+          }}
+          accessibilityLabel="Search providers"
         />
+        <FlatList
+          data={filteredProviders}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <TouchableOpacity onPress={() => handleSelectProvider(item)} accessibilityLabel={`Open details for ${item.name}`}>
+              <View style={{ marginBottom: 16, borderBottomWidth: 1, borderBottomColor: "#333", paddingBottom: 8 }}>
+                <Text style={{ color: "#fff", fontSize: 18, fontWeight: "bold" }}>{item.name}</Text>
+                <Text style={{ color: "#aaa" }}>{item.specialty}</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        />
+      </View>
 
-        <TouchableOpacity
-          onPress={() => openProvider({
-            id: Date.now().toString(),
-            name: '',
-            specialty: '',
-            address: '',
-            phone: '',
-            email: '',
-            fax: '',
-            notes: '',
-          })}
-          style={styles.addButton}
-        >
-          <Text style={styles.addButtonText}>➕ Add Provider</Text>
-        </TouchableOpacity>
-
-        <Modal visible={modalVisible} animationType="slide">
-          <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          >
-            <ScrollView contentContainerStyle={styles.modalContainer}>
-              {selectedProvider && (
-                <>
-                  {[
-                    { label: '🏥 Name or Facility', key: 'name' },
-                    { label: 'Specialty', key: 'specialty' },
-                    { label: '🏠 Address', key: 'address' },
-                    { label: '📞 Phone', key: 'phone' },
-                    { label: '✉️ Email', key: 'email' },
-                    { label: '📠 Fax', key: 'fax' },
-                    { label: '📝 Notes', key: 'notes' },
-                  ].map(({ label, key }) => (
-                    <View key={key} style={styles.inputGroup}>
-                      <Text style={styles.label}>{label}</Text>
-                      <TextInput
-                        placeholder={label}
-                        style={styles.input}
-                        value={selectedProvider[key as keyof Provider]}
-                        onChangeText={(text) =>
-                          setSelectedProvider({
-                            ...selectedProvider,
-                            [key]: text,
-                          })
-                        }
-                        multiline={key === 'notes'}
-                      />
-                    </View>
-                  ))}
-
+      <Modal visible={modalVisible} animationType="slide" transparent>
+        <View style={{ flex: 1, backgroundColor: "#000", padding: 20 }}>
+          <ScrollView style={{ backgroundColor: "#1c1c1e", borderRadius: 12, padding: 16 }}>
+            {[
+              { label: "Name or Facility", field: "name" },
+              { label: "Address", field: "address" },
+              { label: "Phone Number", field: "phone" },
+              { label: "Email", field: "email" },
+              { label: "Fax", field: "fax" },
+              { label: "Notes", field: "notes" },
+            ].map(({ label, field }) => (
+              <View key={field} style={{ marginBottom: 12 }}>
+                <Text style={{ color: "#ccc", marginBottom: 4 }}>{label}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#2c2c2e", borderRadius: 8 }}>
+                  <TextInput
+                    value={selectedProvider?.[field as keyof Provider]?.toString()}
+                    onChangeText={(text) => handleInputChange(field as keyof Provider, text)}
+                    placeholder={label}
+                    placeholderTextColor="#888"
+                    style={{ flex: 1, color: "#fff", padding: 10 }}
+                    accessibilityLabel={`${label} input`}
+                  />
                   <TouchableOpacity
                     onPress={() => {
-                      setProviders((prev) => {
-                        const exists = prev.find((p) => p.id === selectedProvider.id);
-                        return exists
-                          ? prev.map((p) => (p.id === selectedProvider.id ? selectedProvider : p))
-                          : [...prev, selectedProvider];
-                      });
-                      closeProvider();
+                      // Future: Add voice input logic here
+                      alert(`Voice input for ${label} coming soon!`);
                     }}
-                    style={styles.saveButton}
+                    accessibilityLabel={`Voice input for ${label}`}
                   >
-                    <Text style={styles.saveButtonText}>💾 Save</Text>
+                    <MaterialIcons name="keyboard-voice" size={24} color="#999" style={{ padding: 8 }} />
                   </TouchableOpacity>
+                </View>
+              </View>
+            ))}
 
-                  <TouchableOpacity onPress={closeProvider}>
-                    <Text style={styles.cancelButton}>Cancel</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-            </ScrollView>
-          </KeyboardAvoidingView>
-        </Modal>
-      </View>
+            <TouchableOpacity
+              onPress={handleCloseModal}
+              style={{
+                backgroundColor: "#007AFF",
+                padding: 14,
+                borderRadius: 8,
+                marginTop: 20,
+                alignItems: "center",
+              }}
+              accessibilityLabel="Save and close provider details"
+            >
+              <Text style={{ color: "#fff", fontWeight: "600" }}>Save & Close</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
-}
+};
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-  },
-  item: {
-    padding: 16,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-  title: {
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: 'gray',
-  },
-  empty: {
-    textAlign: 'center',
-    marginTop: 50,
-    color: 'gray',
-  },
-  addButton: {
-    marginTop: 20,
-    padding: 12,
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  addButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  modalContainer: {
-    padding: 20,
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    marginBottom: 6,
-    fontWeight: 'bold',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#CCC',
-    borderRadius: 8,
-    padding: 10,
-  },
-  saveButton: {
-    backgroundColor: '#28a745',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  saveButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  cancelButton: {
-    textAlign: 'center',
-    color: '#FF3B30',
-    marginTop: 12,
-  },
-});
+export default Providers;
