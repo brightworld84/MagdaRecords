@@ -8,12 +8,12 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   TextInput,
-  StyleSheet
+  StyleSheet,
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 
-const UploadPage = () => {
+export default function UploadPage() {
   const [selectedFiles, setSelectedFiles] = useState<any[]>([]);
   const [note, setNote] = useState('');
 
@@ -78,7 +78,7 @@ const UploadPage = () => {
       </ScrollView>
     </KeyboardAvoidingView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -113,5 +113,3 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 });
-
-export default UploadPage;
